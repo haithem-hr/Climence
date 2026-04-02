@@ -15,3 +15,13 @@ html, body, #root {
   height: 100vh;
   z-index: 10;
 }
+
+@keyframes mapPulse {
+  0% { transform: scale(0.95); opacity: 0.9; }
+  50% { transform: scale(1.05); opacity: 0.4; }
+  100% { transform: scale(0.95); opacity: 0.9; }
+}
+.danger-pulse {
+  animation: mapPulse 2s infinite ease-in-out;
+  transform-origin: center;
+}

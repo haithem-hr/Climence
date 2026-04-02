@@ -142,6 +142,25 @@ app.get('/api/analytics/hotspots', (req, res) => {
     }
 });
 
+app.get('/api/alerts/active', (req, res) => {
+    try {
+        const query = `
+            SELECT * FROM TelemetryLogs 
+            WHERE id IN (
+                SELECT MAX(id) FROM TelemetryLogs 
+                WHERE server_timestamp >= datetime('now', '-5 minutes')
+                GROUP BY uuid
+            )
+            AND pm25 > 140
+        `;
+        const results = db.prepare(query).all();
+        res.status(200).json(results);
+    } catch (err) {
+        console.error('Database active alerts query error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Central Ingestion API listening on http://localhost:${PORT}`);

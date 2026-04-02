@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import { Wind, Layers, X, Activity, BarChart3, MapPin } from 'lucide-react';
+import { Wind, Layers, X, Activity, BarChart3, MapPin, AlertTriangle } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -34,6 +34,53 @@ interface TelemetryData {
   rssi: number;
   client_timestamp: string;
   server_timestamp: string;
+}
+
+// Spatial Hazard Alerts Component
+function AlertLayer() {
+  const [alerts, setAlerts] = useState<TelemetryData[]>([]);
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/alerts/active');
+        if (res.ok) setAlerts(await res.json());
+      } catch (err) {
+        console.error("Alerts fetching failed:", err);
+      }
+    };
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <>
+      {alerts.map(alert => (
+        <Circle 
+          key={`alert-${alert.uuid}`}
+          center={[alert.lat, alert.lng]} 
+          radius={500} 
+          pathOptions={{ color: '#ef4444', fillColor: '#f87171', fillOpacity: 0.5, className: 'danger-pulse' }}
+        >
+          <Popup>
+            <div className="p-2 text-center">
+              <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
+              <h3 className="font-bold text-gray-800 uppercase tracking-tight text-sm mb-1">
+                ⚠️ Critical Hazard
+              </h3>
+              <p className="text-xs text-gray-600 leading-tight border-b border-gray-200 pb-2 mb-2">
+                <strong className="text-rose-500 text-sm">{alert.pm25} µg/m³</strong> PM2.5 detected.
+              </p>
+              <p className="text-[10px] text-gray-500 uppercase font-bold">Residents are advised to stay indoors.</p>
+            </div>
+          </Popup>
+        </Circle>
+      ))}
+    </>
+  );
 }
 
 // Custom Heatmap Component 
@@ -220,6 +267,8 @@ export default function App() {
         <MapContainer center={[24.7136, 46.6753]} zoom={11} style={{ width: '100%', height: '100%' }} zoomControl={false}>
           <TileLayer attribution='&copy; CARTO' url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
           
+          {<AlertLayer />}
+
           {viewMode === 'markers' && drones.map(drone => (
             <Marker key={drone.uuid} position={[drone.lat, drone.lng]} eventHandlers={{ click: () => setSelectedDroneId(drone.uuid) }} />
           ))}
