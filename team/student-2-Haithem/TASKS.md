@@ -17,7 +17,7 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 - [backend/src/features/alerts/](../../backend/src/features/alerts/) — whole folder (`config.ts`, validators, lifecycle)
 - [backend/src/lib/auth.ts](../../backend/src/lib/auth.ts) — `requireAuth`, `requireRole`
 - [shared/src/auth.ts](../../shared/src/auth.ts) — `UserRole`, `LoginRequest`, `LoginResponse`, `AuthUser`
-- The auth path inside [backend/src/ws.ts](../../backend/src/ws.ts) (token extraction) — edit in coordination with Hamza
+- The auth path inside [backend/src/ws.ts](../../backend/src/ws.ts) (token extraction) — edit in coordination with Haithem
 
 ### Requirements
 
@@ -34,6 +34,8 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 ---
 
 ## Prioritized tasks
+
+> ✅ **DONE — 2026-04-25.** Shipped on branch `haithem/auth-lockout-policy`. Files: [backend/src/features/auth/lockout.ts](../../backend/src/features/auth/lockout.ts) (sliding 10-min window, 15-min lock, injectable clock), [backend/src/features/auth/lockout.test.ts](../../backend/src/features/auth/lockout.test.ts) (6 time-mocked unit tests, all green), [backend/src/routes/auth.ts](../../backend/src/routes/auth.ts) (wired `loginLockout` + added `POST /api/auth/logout`), [backend/src/lib/http.ts](../../backend/src/lib/http.ts) (`sendTooManyRequests` helper sets `Retry-After`), [shared/src/auth.ts](../../shared/src/auth.ts) (shared constants). Live curl verified: 4×401 → 429 with `Retry-After: 900`; admin login on a different account still 200. Traceability: FR-02 evidence updated, UC-A6 promoted Partial → Implemented. **Note for the team:** the lockout is per-process in-memory; a multi-node deployment will need to back this with Redis (interface already isolated in `lockout.ts`). Original task description preserved below for reference.
 
 ### P0 — Login lockout policy
 
@@ -68,7 +70,7 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 - Analyst token can acknowledge alerts (P3) but not change thresholds.
 - `/api/auth/me` returns `{ user, permissions: {...} }`.
 
-**Dependencies:** Hamza's WS auth hook (already in place — just don't break it).
+**Dependencies:** Haithem's WS auth hook (already in place — just don't break it).
 
 ---
 
@@ -90,7 +92,7 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 - Dashboard's banner/feed (Imad's responsibility) reflects the new shape.
 - Migration-safe: existing DBs upgrade cleanly (add column defaults).
 
-**Dependencies:** Hamza (coordinate on snapshot shape + schema migration plan).
+**Dependencies:** Haithem (coordinate on snapshot shape + schema migration plan).
 
 ---
 

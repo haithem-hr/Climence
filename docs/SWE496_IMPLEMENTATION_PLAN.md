@@ -32,14 +32,14 @@ Implemented:
 
 Primary files:
 
-- `packages/api/src/db/schema.sql`
-- `packages/api/src/db/queries.ts`
-- `packages/api/src/routes/alerts.ts`
-- `packages/api/src/features/alerts/config.ts`
-- `packages/api/src/features/alerts/config.test.ts`
-- `packages/dashboard/src/api/client.ts`
-- `packages/dashboard/src/hooks/useLiveTelemetry.ts`
-- `packages/dashboard/src/App.tsx`
+- `backend/src/db/schema.sql`
+- `backend/src/db/queries.ts`
+- `backend/src/routes/alerts.ts`
+- `backend/src/features/alerts/config.ts`
+- `backend/src/features/alerts/config.test.ts`
+- `frontend/src/api/client.ts`
+- `frontend/src/hooks/useLiveTelemetry.ts`
+- `frontend/src/App.tsx`
 
 ## Next Slice (P2) Definition
 
@@ -71,18 +71,18 @@ Implemented:
 
 Primary files:
 
-- `packages/shared/src/auth.ts`
-- `packages/api/src/routes/auth.ts`
-- `packages/api/src/lib/auth.ts`
-- `packages/api/src/features/auth/token.ts`
-- `packages/api/src/features/auth/validation.ts`
-- `packages/api/src/features/auth/token.test.ts`
-- `packages/api/src/features/auth/validation.test.ts`
-- `packages/api/src/ws.ts`
-- `packages/dashboard/src/lib/auth-session.ts`
-- `packages/dashboard/src/api/client.ts`
-- `packages/dashboard/src/hooks/useLiveTelemetry.ts`
-- `packages/dashboard/src/App.tsx`
+- `shared/src/auth.ts`
+- `backend/src/routes/auth.ts`
+- `backend/src/lib/auth.ts`
+- `backend/src/features/auth/token.ts`
+- `backend/src/features/auth/validation.ts`
+- `backend/src/features/auth/token.test.ts`
+- `backend/src/features/auth/validation.test.ts`
+- `backend/src/ws.ts`
+- `frontend/src/lib/auth-session.ts`
+- `frontend/src/api/client.ts`
+- `frontend/src/hooks/useLiveTelemetry.ts`
+- `frontend/src/App.tsx`
 
 ## Test Strategy per Slice
 

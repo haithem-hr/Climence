@@ -16,13 +16,13 @@ From repo root:
 Use `rg` for fast navigation.
 
 - Route handlers:
-  - `rg "router\.(get|post|put|delete)" packages/api/src`
+  - `rg "router\.(get|post|put|delete)" backend/src`
 - Shared contracts:
-  - `rg "export (interface|type|const)" packages/shared/src`
+  - `rg "export (interface|type|const)" shared/src`
 - WebSocket usage:
-  - `rg "ws|WebSocket|broadcastSnapshot" packages`
+  - `rg "ws|WebSocket|broadcastSnapshot" backend frontend simulator`
 - AQI logic:
-  - `rg "aqi|pm25" packages/shared/src packages/dashboard/src packages/api/src`
+  - `rg "aqi|pm25" shared/src frontend/src backend/src`
 
 ## Test Placement
 
@@ -32,8 +32,8 @@ Use `rg` for fast navigation.
 
 ## Adding New Feature (Checklist)
 
-1. Add/extend shared contracts in `packages/shared`.
-2. Implement API feature logic in `packages/api/src/features/<name>`.
+1. Add/extend shared contracts in `shared/`.
+2. Implement API feature logic in `backend/src/features/<name>`.
 3. Keep route handlers thin (`routes/*` should call feature functions).
 4. Add unit tests for pure feature logic.
 5. Update dashboard consumption with shared contracts only.

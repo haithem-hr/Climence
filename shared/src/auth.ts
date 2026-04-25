@@ -23,3 +23,9 @@ export interface LoginResponse {
   user: AuthUser;
   expiresAt: string;
 }
+
+// Login lockout policy (UC-A6 / FR-02). Lives in shared so the frontend can
+// surface countdowns / messaging consistently with the server-side enforcement.
+export const MAX_LOGIN_FAILURES = 5;
+export const LOGIN_FAILURE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes sliding window
+export const LOGIN_LOCK_MS = 15 * 60 * 1000;           // 15 minute lock after threshold

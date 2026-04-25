@@ -31,8 +31,14 @@ Phase 1 (unblock)       Phase 2 (build in parallel)         Phase 3 (polish)
 **Start order**
 
 1. **Hamza (Day 1-2)**: lock down the snapshot contract in `shared/src/messages.ts` and any schema changes in `backend/src/db/schema.sql`. Publish a PR so everyone unblocks.
-2. **Haithem + Abderraouf + Oussama (Day 3+)**: begin in parallel. Haithem's auth middleware is a prerequisite for Abderraouf's new protected routes — sequence the middleware PR first, then backfill tests.
+2. **Haithem + Abderraouf + Oussama (Day 3+)**: begin in parallel. Hamza's auth middleware is a prerequisite for Abderraouf's new protected routes — sequence the middleware PR first, then backfill tests.
 3. **Imad (Day 4+)**: depends on Oussama's shell scaffold to mount the ReportModal and i18n wiring. Can start the i18n dictionary and report exporters in isolation on Day 3.
+
+## Progress log
+
+Most recent first. Each entry: date · who · what landed · branch / files (so the next reviewer knows where to look).
+
+- **2026-04-25 — Haithem** — P0 **Login lockout policy** complete (FR-02 / UC-A6 → Implemented). Sliding 10-min window, 15-min lock after 5 failures, 429 + `Retry-After`. New `POST /api/auth/logout`. Shared lockout constants in `shared/src/auth.ts`. Branch `haithem/auth-lockout-policy`. Files: [backend/src/features/auth/lockout.ts](../backend/src/features/auth/lockout.ts), [lockout.test.ts](../backend/src/features/auth/lockout.test.ts), [routes/auth.ts](../backend/src/routes/auth.ts), [lib/http.ts](../backend/src/lib/http.ts). 19/19 tests green. **Heads-up for #4 Oussama / #5 Imad:** the frontend can now call `/api/auth/logout` on sign-out and surface a "locked, try again in N seconds" message using the `retryAfterSec` field in the 429 body.
 
 ## Shared conventions
 
@@ -40,8 +46,8 @@ Phase 1 (unblock)       Phase 2 (build in parallel)         Phase 3 (polish)
 
 - `main` is protected. No direct commits.
 - Feature branches: `<student>/<slice>-<short-desc>`
-  - `hamza/platform-snapshot-retention`
-  - `haithem/auth-lockout-policy`
+  - `haithem/platform-snapshot-retention`
+  - `hamza/auth-lockout-policy`
   - `abderraouf/analytics-forecast-service`
   - `oussama/frontend-map-drill-down`
   - `imad/reports-excel-exporter`
@@ -82,8 +88,8 @@ A task is done when all of the following are true:
 ### Review policy
 
 - Every PR gets at least one review — ideally from the student whose slice is nearest. Cross-slice reviewers watch for:
-  - Snapshot shape changes (Hamza reviews)
-  - Auth + RBAC changes (Haithem reviews)
+  - Snapshot shape changes (Haithem reviews)
+  - Auth + RBAC changes (Hamza reviews)
   - SQL + query plan changes (Abderraouf reviews)
   - App shell or render path changes (Oussama reviews)
   - Anything touching translations, a11y, or reports (Imad reviews)
