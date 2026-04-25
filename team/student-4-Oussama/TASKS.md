@@ -129,7 +129,7 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 
 **Dependencies:** none (Imad's polish can layer on).
 
-> **DONE** — 2026-04-25
+> ✅**DONE** — 2026-04-25
 >
 > - Split App.tsx (1786 → 118 lines) into: `AuthScreen.tsx`, `Shell.tsx`, `Dashboard.tsx`, `useDashboardData.ts`.
 > - ≤1280px: side rail narrows to 320px. ≤1024px: nav becomes slide-out drawer with hamburger + backdrop overlay. ≤640px: side rail → bottom-sheet with drag handle.
@@ -153,6 +153,12 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 - Wind compass tells a 1-hour story, not just a snapshot.
 
 **Dependencies:** Abderraouf P1 (server trend), P3 (server forecast).
+
+> **BLOCKED** — 2026-04-25
+>
+> Waiting on Abderraouf's server-side trend endpoint (P1) and forecast endpoint (P3).
+> Client-side `detectTrend` and `computeForecast` already work as fallbacks in `useDashboardData.ts`.
+> Once the server fields land in the snapshot shape, wiring is straightforward.
 
 ---
 
