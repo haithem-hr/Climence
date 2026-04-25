@@ -23,7 +23,11 @@ export const ENVIRONMENT_MAP: readonly PollutionHotspot[] = [
 ];
 
 export const PM25_ALERT_THRESHOLD = 140;
-export const TELEMETRY_INTERVAL_MS = 5000;
 export const DRONE_FLEET_SIZE = 25;
-export const API_PORT = 3000;
+export const TELEMETRY_INTERVAL_MS = 5000;
+export const API_PORT = 3002;
+export const WS_PORT = API_PORT;
 export const API_BASE_URL = `http://localhost:${API_PORT}`;
+export const WS_BASE_URL = `ws://localhost:${WS_PORT}`;
+
+export const DEFAULT_PM25_THRESHOLD = 50.0;

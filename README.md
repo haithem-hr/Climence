@@ -46,7 +46,7 @@ Each deployable has its own `.env.example`:
 - [backend/.env.example](backend/.env.example)
 - [frontend/.env.example](frontend/.env.example)
 
-Copy to `.env.local` and fill in values (notably `VITE_GOOGLE_MAPS_API_KEY` for the frontend).
+Copy to `.env.local` and fill in any values you need for local overrides. The frontend map now uses Leaflet with OpenStreetMap tiles, so no maps API key is required.
 
 ## Quality gates
 

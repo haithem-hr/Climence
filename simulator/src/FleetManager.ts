@@ -143,7 +143,7 @@ export class FleetManager {
         timeout: 10_000,
       });
       return Array.isArray(response.data) ? response.data : [];
-    } catch (err) {
+    } catch (err: any) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         this.authToken = null;
         this.authTokenExpiresAtMs = 0;
@@ -156,11 +156,17 @@ export class FleetManager {
         });
         return Array.isArray(retry.data) ? retry.data : [];
       }
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        console.error(`[sim] fetchActiveAlerts 404. Endpoint: ${this.alertsEndpoint}`);
+      }
       throw err;
     }
   }
 
   private async ensureAuthToken(forceRefresh = false) {
+    // --- TEMPORARY AUTH BYPASS REQEUSTED BY USER ---
+    return "dev-bypass-token";
+    // -----------------------------------------------
     const now = Date.now();
     if (
       !forceRefresh &&
@@ -181,13 +187,12 @@ export class FleetManager {
       );
       this.authToken = response.data.token;
       this.authTokenExpiresAtMs = response.data.expiresAt
-        ? new Date(response.data.expiresAt).getTime()
-        : now + 30 * 60 * 1000;
+        ? new Date(response.data.expiresAt as string).getTime()
+        : now + 3600_000;
       return this.authToken;
-    } catch (err) {
+    } catch (err: any) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`[${new Date().toISOString()}] Simulator auth failed. Error: ${message}`);
-      return null;
+      throw new Error(`Simulator auth failed. Error: ${message}`);
     }
   }
 

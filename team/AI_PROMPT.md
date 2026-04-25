@@ -9,7 +9,7 @@ The assistant will read the project, identify your slice, and brief you on exact
 ```
 I'm a student on the Climence project — a real-time air-quality monitoring
 system for Riyadh, built for SWE 496 / SWE 497 (KSU CCIS). My first name is
-[YOUR FIRST NAME].
+Oussama.
 
 Before answering anything else, do the following — in order — using only
 what you actually read in the repo (do not guess):
@@ -18,7 +18,7 @@ what you actually read in the repo (do not guess):
    - README.md                                  (project quick start + layout)
    - ARCHITECTURE.md                            (chosen architecture, layer rules, data flow)
    - team/OVERVIEW.md                           (ownership matrix + build order + conventions + progress log)
-   - team/student-*-[YOUR FIRST NAME]/TASKS.md  (my specific prioritized tasks — find the folder whose name ends with my first name)
+   - team/student-*-[Oussama]/TASKS.md  (my specific prioritized tasks — find the folder whose name ends with my first name)
    - docs/SWE496_REQUIREMENTS_TRACEABILITY.md   (FR/NFR/UC status + evidence)
 
 2. Skim what just shipped:
@@ -55,7 +55,7 @@ what you actually read in the repo (do not guess):
      migrations, auth contract changes — flag them explicitly)
 
    ## Conventions I must follow
-   - My branch name format: `[my-firstname-lowercased]/<slice>-<short-desc>`
+   - My branch name format: `[my-oussama-lowercased]/<slice>-<short-desc>`
    - Commit message format (from team/OVERVIEW.md)
    - Definition of Done checklist (typecheck + lint + test + dev still
      boots + traceability row updated + TASKS.md ✅ DONE block added +
@@ -66,7 +66,7 @@ what you actually read in the repo (do not guess):
    when actual work lands), you MUST update these three docs before we
    close out the task. Treat this as part of the task itself, not optional.
 
-   a. team/student-*-[MY FIRST NAME]/TASKS.md
+   a. team/student-*-[Oussama]/TASKS.md
       - Insert a ✅ DONE block IMMEDIATELY ABOVE the original `### P#`
         heading for the task we just finished.
       - PRESERVE the original task description below — never delete or
