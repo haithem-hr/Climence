@@ -3,6 +3,7 @@ import { divIcon } from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { RIYADH_BOUNDS, RIYADH_CENTER, type AqiBandKey, type DroneState } from '@climence/shared';
 import '../../lib/leaflet-icons';
+import { HeatmapLayer, type HeatmapPoint } from './HeatmapLayer';
 import { buildSensorMarkerHtml, describeDroneState } from './markerState';
 
 export type RiyadhMapMode = 'hardware' | 'heatmap';
@@ -22,6 +23,8 @@ export interface RiyadhMapHotspot {
   aqi: number;
   band: AqiBandKey;
   radiusKm?: number;
+  label?: string;
+  valueLabel?: string;
 }
 
 export interface RiyadhMapSensor {
@@ -42,6 +45,7 @@ interface Props {
   mode: RiyadhMapMode;
   sensors: RiyadhMapSensor[];
   hotspots?: RiyadhMapHotspot[];
+  heatmapPoints?: HeatmapPoint[];
   zoomPreset?: RiyadhZoomPreset;
   focusTarget?: { lat: number; lng: number; zoom?: number; nonce: number } | null;
   onViewportChange?: (viewport: { bounds: RiyadhMapBounds; zoom: number }) => void;
@@ -113,6 +117,7 @@ export function RiyadhGoogleMap({
   mode,
   sensors,
   hotspots = [],
+  heatmapPoints = [],
   zoomPreset = 'city',
   focusTarget = null,
   onViewportChange,
@@ -163,6 +168,7 @@ export function RiyadhGoogleMap({
 
         <ViewportReporter onViewportChange={onViewportChange} />
         <ViewController zoomPreset={zoomPreset} focusTarget={focusTarget} />
+        {mode === 'heatmap' && heatmapPoints.length > 0 && <HeatmapLayer points={heatmapPoints} />}
 
         {hotspots.map(hotspot => {
           const hotspotColor = BAND_COLOR[hotspot.band];
@@ -180,8 +186,8 @@ export function RiyadhGoogleMap({
               }}
             >
               <Popup>
-                <strong>{hotspot.id}</strong>
-                <div>AQI {Math.round(hotspot.aqi)}</div>
+                <strong>{hotspot.label ?? hotspot.id}</strong>
+                <div>{hotspot.valueLabel ?? `AQI ${Math.round(hotspot.aqi)}`}</div>
               </Popup>
             </Circle>
           );
@@ -214,24 +220,6 @@ export function RiyadhGoogleMap({
           );
         })}
 
-        {mode === 'heatmap' &&
-          sortedSensors.map(sensor => {
-            const color = BAND_COLOR[sensor.band];
-            return (
-              <Circle
-                key={`heat-${sensor.uuid}`}
-                center={[sensor.lat, sensor.lng]}
-                radius={Math.max(220, sensor.aqi * 12)}
-                pathOptions={{
-                  color,
-                  weight: 1,
-                  opacity: 0.36,
-                  fillColor: color,
-                  fillOpacity: sensor.status === 'offline' ? 0.04 : 0.16,
-                }}
-              />
-            );
-          })}
       </MapContainer>
     </div>
   );

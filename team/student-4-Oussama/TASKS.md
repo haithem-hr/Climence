@@ -86,6 +86,13 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 
 ---
 
+> ✅ **DONE — 2026-04-25.**
+> Branch: `oussama/frontend-map-drill-down`.
+> Files changed: [frontend/src/App.tsx](../../frontend/src/App.tsx), [frontend/src/components/map/RiyadhGoogleMap.tsx](../../frontend/src/components/map/RiyadhGoogleMap.tsx), [frontend/src/components/map/HeatmapLayer.tsx](../../frontend/src/components/map/HeatmapLayer.tsx), [frontend/src/lib/mapMetrics.ts](../../frontend/src/lib/mapMetrics.ts), [frontend/test/mapMetrics.test.ts](../../frontend/test/mapMetrics.test.ts).
+> Tests: **31/31 green** (`npm run test --silent`), plus repo type/lint green (`npm run typecheck`, `npm run lint`), frontend build green (`npm run build -w @climence/dashboard`), and manual dev boot verified (`npm run dev`).
+> Requirement IDs moved: **FR-06 (Partial → Implemented)**; **UC1** strengthened through metric-aware heatmap, hotspot, and legend switching.
+> Heads-up: non-PM2.5 hotspot circles currently fall back to sensor-derived ranking until backend pollutant-specific hotspot aggregates land.
+
 ### P2 — Pollutant switching that actually switches (FR-06)
 
 **Files:** [frontend/src/App.tsx](../../frontend/src/App.tsx), [frontend/src/components/map/HeatmapLayer.tsx](../../frontend/src/components/map/HeatmapLayer.tsx)

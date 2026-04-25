@@ -15,7 +15,7 @@ Status scale:
 | FR-03 | Role-based access (admin/analyst/viewer) | 6.1.B | Partial | Auth roles enforced for protected APIs and admin alert settings; broader module-level RBAC still expanding |
 | FR-04 | Real-time pollution map | 6.1.C | Implemented | `frontend/src/components/map/RiyadhGoogleMap.tsx` (Leaflet map, state-aware markers, offline timestamp tooltips), `frontend/src/components/map/markerState.ts` (AQI-fill marker state mapping), `frontend/src/index.css` (marker visuals), `frontend/test/markerState.test.ts` (frontend marker-state unit coverage) |
 | FR-05 | Zoom/pan between regions/cities/zones | 6.1.C | Implemented | `frontend/src/components/map/RiyadhGoogleMap.tsx` (city/sector/zone presets, fly-to, live viewport/zoom callbacks), `frontend/src/App.tsx` (bounds-aware KPI/viewing panels + hotspot fly-to wiring) |
-| FR-06 | Pollutant switching (CO2/NO2/PM2.5/O3...) | 6.1.C | Partial | UI switching in `frontend/src/App.tsx` |
+| FR-06 | Pollutant switching (CO2/NO2/PM2.5/O3...) | 6.1.C | Implemented | `frontend/src/App.tsx` (active pollutant drives map overlay, hotspot severity, and legend labels), `frontend/src/components/map/RiyadhGoogleMap.tsx` (metric-aware heatmap + hotspots), `frontend/src/components/map/HeatmapLayer.tsx` (generic Leaflet heat layer), `frontend/src/lib/mapMetrics.ts` (per-pollutant normalization scales), `frontend/test/mapMetrics.test.ts` |
 | FR-07 | Display AQI by region | 6.1.C | Partial | Sensor/city AQI implemented; regional aggregation incomplete |
 | FR-08 | Filter data by time, pollutant, location | 6.1.C + UC-A1 | Partial | Time and pollutant filters implemented; location filter incomplete |
 | FR-09 | Historical trends (daily/weekly/monthly) | 6.1.D + UC2 | Partial | Trend chart exists; full historical granularity incomplete |
@@ -50,7 +50,7 @@ Status scale:
 
 | Use Case | Status | Notes |
 | --- | --- | --- |
-| UC1 Real-Time Map | Partial | Drill-down, viewport-aware counts, hotspot fly-to, and drone-state marker cues are implemented; pollutant heat switching and fuller regional aggregation are still pending |
+| UC1 Real-Time Map | Partial | Drill-down, viewport-aware counts, drone-state marker cues, and pollutant-driven heat/hotspot switching are implemented; fuller regional aggregation is still pending |
 | UC2 Historical Trends | Partial | Core charting implemented, richer data controls pending |
 | UC3 Forecast | Partial | UI present, production forecasting pipeline pending |
 | UC4 Generate Reports | Implemented | Reports modal (topbar + left nav) exports CSV / JSON / print-to-PDF of live snapshot |
@@ -113,3 +113,10 @@ Delivered requirement slice:
 
 - FR-04: encoded `OFFLINE`, `LOW_BATTERY`, `GATHERING_DATA`, and `EN_ROUTE` marker cues in the Leaflet map while preserving AQI band fill (`frontend/src/components/map/RiyadhGoogleMap.tsx`, `frontend/src/components/map/markerState.ts`, `frontend/src/index.css`).
 - UC1: strengthened live map diagnostics with offline timestamp tooltips/popup labels and added frontend unit coverage for the marker-state mapping (`frontend/src/components/map/RiyadhGoogleMap.tsx`, `frontend/test/markerState.test.ts`).
+
+## Iteration (2026-04-25 — Oussama · pollutant map switching)
+
+Delivered requirement slice:
+
+- FR-06: implemented real pollutant-driven map switching so the active metric now controls heatmap intensity, hotspot severity, and legend labels across PM2.5, CO2, NO2, temperature, humidity, and battery (`frontend/src/App.tsx`, `frontend/src/components/map/RiyadhGoogleMap.tsx`, `frontend/src/components/map/HeatmapLayer.tsx`, `frontend/src/lib/mapMetrics.ts`).
+- UC1: strengthened live map exploration by stabilizing sensor projection on inert snapshots and adding frontend unit coverage for the per-metric normalization/banding rules (`frontend/src/App.tsx`, `frontend/test/mapMetrics.test.ts`).

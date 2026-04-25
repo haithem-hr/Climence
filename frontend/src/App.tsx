@@ -49,9 +49,18 @@ import {
   type RiyadhZoomPreset,
 } from './components/map/RiyadhGoogleMap';
 import { ReportModal } from './components/ReportModal';
+import type { HeatmapPoint } from './components/map/HeatmapLayer';
 import { useLiveTelemetry, type ConnectionStatus } from './hooks/useLiveTelemetry';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from './lib/analytics';
 import { translate, type DictKey, type Locale } from './lib/i18n';
+import {
+  bandForMetricValue,
+  formatMetricValue,
+  getMapMetricConfig,
+  getMapMetricValue,
+  heatIntensityForMetric,
+  type MapMetricKey,
+} from './lib/mapMetrics';
 import type { ReportPayload } from './lib/reports';
 import {
   clearAuthSession,
@@ -63,7 +72,7 @@ import climenceLogo from './assets/climence-logo.png';
 
 type ViewMode = 'hardware' | 'heatmap';
 type TimeRange = '1h' | '24h' | '7d' | '30d';
-type PollutantKey = 'pm25' | 'co2' | 'no2' | 'temperature' | 'humidity' | 'battery';
+type PollutantKey = MapMetricKey;
 type AqiBandKey = (typeof AQI_BANDS)[number]['key'];
 type AlertSeverity = 'crit' | 'warn' | 'info' | 'ok';
 
@@ -96,6 +105,11 @@ interface HotspotCard {
   lat: number;
   lng: number;
   aqi: number;
+  metricKey: PollutantKey;
+  metricLabel: string;
+  metricUnit: string;
+  metricValue: number;
+  metricDisplayValue: string;
   band: AqiBandKey;
   trend: number;
   pollutant: string;
@@ -257,10 +271,19 @@ function isSensorInBounds(sensor: SensorPoint, bounds: RiyadhMapBounds) {
   return inLat && inLng;
 }
 
-function hotspotsFromApi(hotspots: Hotspot[], sensors: SensorPoint[]): HotspotCard[] {
+function hotspotsFromApi(hotspots: Hotspot[], sensors: SensorPoint[], metricKey: PollutantKey): HotspotCard[] {
+  const metricConfig = getMapMetricConfig(metricKey);
+
   return hotspots.map((hotspot, index) => {
+    const fallbackSensor = sensors[index % Math.max(1, sensors.length)];
+    const metricValue =
+      metricKey === 'pm25'
+        ? hotspot.avg_pm25
+        : fallbackSensor
+          ? getMapMetricValue(metricKey, fallbackSensor)
+          : getMapMetricConfig(metricKey).min;
     const aqi = pm25ToAqi(hotspot.avg_pm25);
-    const band = aqiBandFor(aqi).key;
+    const band = bandForMetricValue(metricKey, metricValue);
     const trend = Math.round(((index % 3) - 1) * (4 + index * 2));
     const hotspotWithRadius = hotspot as Hotspot & { radius_km?: number; radiusKm?: number };
     const radiusCandidate = hotspotWithRadius.radiusKm ?? hotspotWithRadius.radius_km;
@@ -276,28 +299,46 @@ function hotspotsFromApi(hotspots: Hotspot[], sensors: SensorPoint[]): HotspotCa
       lat: hotspot.lat_zone,
       lng: hotspot.lng_zone,
       aqi,
+      metricKey,
+      metricLabel: metricConfig.label,
+      metricUnit: metricConfig.unit,
+      metricValue,
+      metricDisplayValue: formatMetricValue(metricKey, metricValue),
       band,
       trend,
-      pollutant: 'PM2.5',
+      pollutant: metricConfig.label,
       sourceUuid: nearestSensorUuid(hotspot.lat_zone, hotspot.lng_zone, sensors),
       radiusKm,
     };
   });
 }
 
-function hotspotsFromSensors(sensors: SensorPoint[]): HotspotCard[] {
-  return sensors.slice(0, 7).map((sensor, index) => ({
-    id: `SNS-${index + 1}`,
-    name: sensor.label,
-    coord: formatCoord(sensor.lat, sensor.lng),
-    lat: sensor.lat,
-    lng: sensor.lng,
-    aqi: sensor.aqi,
-    band: sensor.band,
-    trend: Math.round((sensor.pm25 % 12) - 3),
-    pollutant: 'PM2.5',
-    sourceUuid: sensor.uuid,
-  }));
+function hotspotsFromSensors(sensors: SensorPoint[], metricKey: PollutantKey): HotspotCard[] {
+  const metricConfig = getMapMetricConfig(metricKey);
+
+  return [...sensors]
+    .sort((left, right) => getMapMetricValue(metricKey, right) - getMapMetricValue(metricKey, left))
+    .slice(0, 7)
+    .map((sensor, index) => {
+      const metricValue = getMapMetricValue(metricKey, sensor);
+      return {
+        id: `SNS-${index + 1}`,
+        name: sensor.label,
+        coord: formatCoord(sensor.lat, sensor.lng),
+        lat: sensor.lat,
+        lng: sensor.lng,
+        aqi: sensor.aqi,
+        metricKey,
+        metricLabel: metricConfig.label,
+        metricUnit: metricConfig.unit,
+        metricValue,
+        metricDisplayValue: formatMetricValue(metricKey, metricValue),
+        band: bandForMetricValue(metricKey, metricValue),
+        trend: Math.round((metricValue % 12) - 3),
+        pollutant: metricConfig.label,
+        sourceUuid: sensor.uuid,
+      };
+    });
 }
 
 function Sparkline({
@@ -432,7 +473,7 @@ function HotspotDrawer({
   if (!hotspot) return null;
 
   const band = AQI_BANDS.find(item => item.key === hotspot.band);
-  const series = historySeries.length > 0 ? historySeries : seededSeries(7, 48, hotspot.aqi * 0.75, 40);
+  const series = historySeries.length > 0 ? historySeries : seededSeries(7, 48, hotspot.metricValue * 0.75, 40);
 
   return (
     <div className={`drawer ${hotspot ? 'open' : ''}`}>
@@ -460,15 +501,15 @@ function HotspotDrawer({
               letterSpacing: '-0.02em',
             }}
           >
-            {Math.round(hotspot.aqi)}
+            {hotspot.metricDisplayValue}
           </div>
           <div>
             <span className="band">
               <span className="dot" style={{ background: `var(--aqi-${hotspot.band})` }} />
-              {band?.label ?? 'AQI'}
+              {band?.label ?? hotspot.metricLabel}
             </span>
             <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              AQI · dominant {hotspot.pollutant}
+              {hotspot.metricLabel} · {hotspot.metricUnit}
             </div>
           </div>
         </div>
@@ -575,11 +616,37 @@ export default function App() {
     };
   }, [authToken]);
 
+  const sensorProjectionSignature = useMemo(
+    () =>
+      snapshot.drones
+        .map(drone =>
+          [
+            drone.uuid,
+            drone.state,
+            drone.lat,
+            drone.lng,
+            drone.pm25,
+            drone.co2,
+            drone.no2,
+            drone.temperature,
+            drone.humidity,
+            drone.batteryLevel,
+            drone.rssi,
+            drone.server_timestamp,
+          ].join(':'),
+        )
+        .join('|'),
+    [snapshot.drones],
+  );
+
   const sensors = useMemo(() => {
     return snapshot.drones
       .map((drone, index) => toSensorPoint(drone, index))
       .sort((left, right) => right.aqi - left.aqi);
-  }, [snapshot.drones]);
+    // The drone array reference changes on every snapshot tick; the signature above
+    // keeps the projection stable when the telemetry values themselves did not change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sensorProjectionSignature]);
 
   const onlineSensors = useMemo(
     () => sensors.filter(sensor => sensor.status === 'online').length,
@@ -598,17 +665,30 @@ export default function App() {
 
   const hotspots = useMemo(() => {
     if (snapshot.hotspots.length > 0) {
-      const fromApi = hotspotsFromApi(snapshot.hotspots, sensors);
+      const fromApi = pollutant === 'pm25' ? hotspotsFromApi(snapshot.hotspots, sensors, pollutant) : [];
       if (fromApi.length >= 7) return fromApi;
-      return [...fromApi, ...hotspotsFromSensors(sensors)].slice(0, 7);
+      return [...fromApi, ...hotspotsFromSensors(sensors, pollutant)].slice(0, 7);
     }
-    return hotspotsFromSensors(sensors);
-  }, [snapshot.hotspots, sensors]);
+    return hotspotsFromSensors(sensors, pollutant);
+  }, [pollutant, snapshot.hotspots, sensors]);
 
   const selectedHotspot = useMemo(() => {
     if (!selected) return null;
     return hotspots.find(hotspot => hotspot.id === selected.id) ?? null;
   }, [hotspots, selected]);
+
+  const mapHeatmapPoints = useMemo<HeatmapPoint[]>(
+    () =>
+      sensors.map(sensor => {
+        const metricValue = getMapMetricValue(pollutant, sensor);
+        return {
+          lat: sensor.lat,
+          lng: sensor.lng,
+          intensity: heatIntensityForMetric(pollutant, metricValue),
+        };
+      }),
+    [pollutant, sensors],
+  );
 
   const mapHotspots = useMemo<RiyadhMapHotspot[]>(
     () => hotspots.map(hotspot => ({
@@ -618,6 +698,8 @@ export default function App() {
       aqi: hotspot.aqi,
       band: hotspot.band,
       radiusKm: hotspot.radiusKm,
+      label: hotspot.name,
+      valueLabel: `${hotspot.metricLabel} ${hotspot.metricDisplayValue} ${hotspot.metricUnit}`,
     })),
     [hotspots],
   );
@@ -646,7 +728,16 @@ export default function App() {
     fetchHistory(sourceUuid, authToken)
       .then(rows => {
         if (cancelled) return;
-        const history = rows.map(row => pm25ToAqi(row.pm25));
+        const history = rows.map(row =>
+          getMapMetricValue(selectedHotspot.metricKey, {
+            pm25: row.pm25,
+            co2: row.co2,
+            no2: row.no2,
+            temperature: row.temperature,
+            humidity: row.humidity,
+            battery: row.batteryLevel,
+          }),
+        );
         setHistorySeries(history.length > 1 ? history : fallback);
         setHistorySourceUuid(sourceUuid);
       })
@@ -803,7 +894,7 @@ export default function App() {
       id: `fallback-${hotspot.id}`,
       severity: index === 0 ? 'crit' : index < 3 ? 'warn' : 'ok',
       title: `${hotspot.name} monitoring advisory`,
-      meta: `${hotspot.coord} · AQI ${hotspot.aqi}`,
+      meta: `${hotspot.coord} · ${hotspot.metricLabel} ${hotspot.metricDisplayValue} ${hotspot.metricUnit}`,
       time: `${(index + 1) * 5}m`,
     }));
   }, [effectiveAlertThreshold, snapshot.alerts, hotspots]);
@@ -811,6 +902,7 @@ export default function App() {
   const liveAge = formatAgo(snapshot.emittedAt);
 
   const activePollutant = pollutantStats.find(stat => stat.key === pollutant)?.name ?? 'PM2.5';
+  const activeMetricConfig = useMemo(() => getMapMetricConfig(pollutant), [pollutant]);
   const drawerHistorySeries =
     selectedHotspot?.sourceUuid && historySourceUuid === selectedHotspot.sourceUuid ? historySeries : [];
   const thresholdExceededBy = Math.max(0, pm25Now - effectiveAlertThreshold);
@@ -818,6 +910,17 @@ export default function App() {
   const handlePickSensor = useCallback((sensor: RiyadhMapSensor) => {
     const source = sensors.find(item => item.uuid === sensor.uuid);
     const id = source?.id ?? `S-${sensor.uuid.slice(-4).toUpperCase()}`;
+    const metricValue = getMapMetricValue(
+      pollutant,
+      source ?? {
+        pm25: sensor.pm25,
+        co2: 0,
+        no2: 0,
+        temperature: 0,
+        humidity: 0,
+        battery: sensor.battery,
+      },
+    );
     setSelected({
       id,
       name: sensor.label,
@@ -825,12 +928,17 @@ export default function App() {
       lat: sensor.lat,
       lng: sensor.lng,
       aqi: sensor.aqi,
-      band: sensor.band,
-      trend: Math.round((sensor.pm25 % 15) - 4),
-      pollutant: 'PM2.5',
+      metricKey: pollutant,
+      metricLabel: activeMetricConfig.label,
+      metricUnit: activeMetricConfig.unit,
+      metricValue,
+      metricDisplayValue: formatMetricValue(pollutant, metricValue),
+      band: bandForMetricValue(pollutant, metricValue),
+      trend: Math.round((metricValue % 15) - 4),
+      pollutant: activeMetricConfig.label,
       sourceUuid: sensor.uuid,
     });
-  }, [sensors]);
+  }, [activeMetricConfig.label, activeMetricConfig.unit, pollutant, sensors]);
 
   const handleMapViewportChange = useCallback((viewport: { bounds: RiyadhMapBounds; zoom: number }) => {
     setMapBounds(viewport.bounds);
@@ -1218,6 +1326,7 @@ export default function App() {
             mode={mode}
             sensors={sensors}
             hotspots={mapHotspots}
+            heatmapPoints={mapHeatmapPoints}
             zoomPreset={zoomPreset}
             focusTarget={mapFocusTarget}
             onViewportChange={handleMapViewportChange}
@@ -1255,7 +1364,7 @@ export default function App() {
 
           <div className="map-panel-bl glass legend">
             <div className="legend-title">
-              <span className="eyebrow">AQI · US EPA</span>
+              <span className="eyebrow">{activeMetricConfig.legendTitle}</span>
               <span className="mono" style={{ fontSize: 10, color: 'var(--ink-3)' }}>
                 {activePollutant}
               </span>
@@ -1266,12 +1375,9 @@ export default function App() {
               ))}
             </div>
             <div className="legend-scale tnum">
-              <span>0</span>
-              <span>50</span>
-              <span>100</span>
-              <span>150</span>
-              <span>200</span>
-              <span>300+</span>
+              {activeMetricConfig.legendStops.map(stop => (
+                <span key={stop}>{stop}</span>
+              ))}
             </div>
             <div className="legend-bands">
               {AQI_BANDS.slice(0, 4).map(band => (
@@ -1479,9 +1585,9 @@ export default function App() {
                   </div>
                 </div>
                 <div className={`hotspot-val ${hotspot.band}`}>
-                  <div className="n tnum">{hotspot.aqi}</div>
+                  <div className="n tnum">{hotspot.metricDisplayValue}</div>
                   <div className="u">
-                    AQI · {hotspot.trend > 0 ? '+' : ''}
+                    {hotspot.metricLabel} · {hotspot.trend > 0 ? '+' : ''}
                     {hotspot.trend}%
                   </div>
                 </div>

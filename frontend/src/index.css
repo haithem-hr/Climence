@@ -594,6 +594,7 @@ html[dir='rtl'] .nav-item .count {
   position: relative;
   overflow: hidden;
   background: var(--bg-0);
+  isolation: isolate;
 }
 
 .map {
@@ -623,7 +624,7 @@ html[dir='rtl'] .nav-item .count {
 .map-fallback {
   position: absolute;
   inset: 16px;
-  z-index: 3;
+  z-index: 920;
   display: grid;
   place-content: center;
   text-align: center;
@@ -678,7 +679,7 @@ html[dir='rtl'] .nav-item .count {
 .map-panel-bl,
 .map-panel-br {
   position: absolute;
-  z-index: 3;
+  z-index: 900;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -1543,7 +1544,7 @@ html[dir='rtl'] .side {
   width: 420px;
   background: var(--bg-0);
   border-left: 1px solid var(--line);
-  z-index: 12;
+  z-index: 930;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
@@ -1657,6 +1658,7 @@ html[dir='rtl'] .drawer {
   color: var(--ink-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  z-index: 890;
 }
 
 .statusbar .item {
