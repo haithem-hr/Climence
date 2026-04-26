@@ -41,10 +41,21 @@ const BAND_COLOR: Record<AqiBandKey, string> = {
   haz: '#7f3c2f',
 };
 
+type HeatPoint = [number, number, number];
+type HeatLayerOptions = {
+  radius: number;
+  blur: number;
+  maxZoom: number;
+  gradient: Record<number, string>;
+};
+type LeafletWithHeat = typeof L & {
+  heatLayer(points: HeatPoint[], options: HeatLayerOptions): L.Layer;
+};
+
 // Component to handle heatmap layer
 function HeatmapLayer({ sensors }: { sensors: LeafletMapSensor[] }) {
   const map = useMap();
-  const heatLayerRef = useRef<any>(null);
+  const heatLayerRef = useRef<L.Layer | null>(null);
 
   useEffect(() => {
     if (!map) return;
@@ -53,9 +64,9 @@ function HeatmapLayer({ sensors }: { sensors: LeafletMapSensor[] }) {
       map.removeLayer(heatLayerRef.current);
     }
 
-    const points = sensors.map(s => [s.lat, s.lng, Math.min(1.0, s.aqi / 200)]); // [lat, lng, intensity]
+    const points: HeatPoint[] = sensors.map(s => [s.lat, s.lng, Math.min(1.0, s.aqi / 200)]);
     
-    heatLayerRef.current = (L as any).heatLayer(points, {
+    heatLayerRef.current = (L as LeafletWithHeat).heatLayer(points, {
       radius: 40,
       blur: 25,
       maxZoom: 14,

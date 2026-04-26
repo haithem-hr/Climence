@@ -15,10 +15,6 @@
  */
 
 import { Router } from 'express';
-import { getCityTrend, getHotspots } from '../db/queries';
-import { rolesForPermission } from '../features/auth/permissions';
-import { requireAuth, requireRole } from '../lib/auth';
-import { sendInternalError } from '../lib/http';
 import {
   getCityTrend,
   getAlertThresholdPm25,
@@ -28,22 +24,22 @@ import {
   getHourlyHistory,
   getRawPointsForHotspot,
   getSourceData,
-} from '../db/queries.js';
-import { detectHotspots } from '../features/analytics/hotspots.js';
-import { classifyTrend } from '../features/analytics/trend.js';
-import { computeForecast } from '../features/analytics/forecast.js';
-import { attributeSources } from '../features/analytics/sources.js';
-import { requireAuth } from '../lib/auth.js';
-import { sendBadRequest, sendInternalError } from '../lib/http.js';
+} from '../db/queries';
+import { rolesForPermission } from '../features/auth/permissions';
+import { detectHotspots } from '../features/analytics/hotspots';
+import { classifyTrend } from '../features/analytics/trend';
+import { computeForecast } from '../features/analytics/forecast';
+import { attributeSources } from '../features/analytics/sources';
+import { requireAuth, requireRole } from '../lib/auth';
+import { sendBadRequest, sendInternalError } from '../lib/http';
 
 const router = Router();
 const canViewAnalytics = rolesForPermission('canViewAnalytics');
 
-router.get('/city-trend', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
 // ---------------------------------------------------------------------------
 // GET /api/analytics/city-trend
 // ---------------------------------------------------------------------------
-router.get('/city-trend', requireAuth, (_req, res) => {
+router.get('/city-trend', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
   try {
     res.status(200).json(getCityTrend());
   } catch (err) {
@@ -51,11 +47,10 @@ router.get('/city-trend', requireAuth, (_req, res) => {
   }
 });
 
-router.get('/hotspots', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
 // ---------------------------------------------------------------------------
 // GET /api/analytics/hotspots  (legacy grid-bucket, kept for compat)
 // ---------------------------------------------------------------------------
-router.get('/hotspots', requireAuth, (_req, res) => {
+router.get('/hotspots', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
   try {
     res.status(200).json(getHotspots());
   } catch (err) {
@@ -66,7 +61,7 @@ router.get('/hotspots', requireAuth, (_req, res) => {
 // ---------------------------------------------------------------------------
 // GET /api/analytics/hotspot-clusters
 // ---------------------------------------------------------------------------
-router.get('/hotspot-clusters', requireAuth, (_req, res) => {
+router.get('/hotspot-clusters', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
   try {
     const rawPoints = getRawPointsForHotspot(5);
     const threshold = getAlertThresholdPm25();
@@ -85,7 +80,7 @@ const WINDOW_MINUTES: Record<string, number> = {
   '24h': 1440,
 };
 
-router.get('/trend', requireAuth, (req, res) => {
+router.get('/trend', requireAuth, requireRole(...canViewAnalytics), (req, res) => {
   try {
     const windowKey = (req.query['window'] as string) ?? '30m';
     const windowMin = WINDOW_MINUTES[windowKey];
@@ -108,7 +103,7 @@ router.get('/trend', requireAuth, (req, res) => {
 const VALID_POLLUTANTS = new Set(['pm25', 'co2', 'no2']);
 const VALID_RANGES     = new Set(['1h', '24h', '7d', '30d']);
 
-router.get('/history', requireAuth, (req, res) => {
+router.get('/history', requireAuth, requireRole(...canViewAnalytics), (req, res) => {
   try {
     const pollutant = (req.query['pollutant'] as string) ?? 'pm25';
     const range     = (req.query['range']     as string) ?? '1h';
@@ -154,7 +149,7 @@ router.get('/history', requireAuth, (req, res) => {
 // ---------------------------------------------------------------------------
 const VALID_HOURS = new Set([6, 12, 24, 72, 168]);
 
-router.get('/forecast', requireAuth, (req, res) => {
+router.get('/forecast', requireAuth, requireRole(...canViewAnalytics), (req, res) => {
   try {
     const hoursParam = parseInt((req.query['hours'] as string) ?? '6', 10);
     if (!VALID_HOURS.has(hoursParam)) {
@@ -178,7 +173,7 @@ const SOURCE_HOURS: Record<string, number> = {
   '24h': 24,
 };
 
-router.get('/sources', requireAuth, (req, res) => {
+router.get('/sources', requireAuth, requireRole(...canViewAnalytics), (req, res) => {
   try {
     const rangeKey = (req.query['range'] as string) ?? '24h';
     const hours    = SOURCE_HOURS[rangeKey];
@@ -196,4 +191,3 @@ router.get('/sources', requireAuth, (req, res) => {
 });
 
 export default router;
-

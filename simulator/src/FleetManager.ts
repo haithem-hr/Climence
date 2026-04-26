@@ -193,9 +193,6 @@ export class FleetManager {
   }
 
   private async ensureAuthToken(forceRefresh = false) {
-    // --- TEMPORARY AUTH BYPASS REQEUSTED BY USER ---
-    return "dev-bypass-token";
-    // -----------------------------------------------
     const now = Date.now();
     if (
       !forceRefresh &&

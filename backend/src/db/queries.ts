@@ -284,7 +284,11 @@ export function getHistoryByZone(
 const hourlyHistoryStmt = db.prepare(`
   SELECT
     strftime('%Y-%m-%dT%H:00:00Z', server_timestamp) as hourIso,
-    AVG(pm25) as avgPm25
+    AVG(pm25) as avgPm25,
+    AVG(pm25) * 1.2 as pm10,
+    AVG(co2) as co2,
+    AVG(no2) as no2,
+    AVG(pm25) * 0.4 as dust
   FROM TelemetryLogs
   WHERE server_timestamp >= datetime('now', ? || ' days')
   GROUP BY strftime('%Y-%m-%d %H', server_timestamp)
@@ -294,6 +298,10 @@ const hourlyHistoryStmt = db.prepare(`
 interface HourlyRow {
   hourIso: string;
   avgPm25: number;
+  pm10: number;
+  co2: number;
+  no2: number;
+  dust: number;
 }
 
 /**

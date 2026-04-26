@@ -39,6 +39,16 @@ const POLLUTANT_COLORS = {
   dust: 'oklch(0.85 0.15 80)',
 };
 
+interface AnalyticsPoint {
+  time: string;
+  pm25: number;
+  pm10: number;
+  co2: number;
+  no2: number;
+  dust: number;
+  isForecast: boolean;
+}
+
 export function AnalyticsView({ authToken }: AnalyticsViewProps) {
   const [range, setRange] = useState<TimeRange>('24h');
   const [showForecast, setShowForecast] = useState(false);
@@ -53,15 +63,15 @@ export function AnalyticsView({ authToken }: AnalyticsViewProps) {
     dust: true,
   });
 
-  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [historyData, setHistoryData] = useState<AnalyticsPoint[]>([]);
   const [forecastData, setForecastData] = useState<ForecastPoint[]>([]);
 
   useEffect(() => {
     if (!authToken) return;
     let cancelled = false;
-    setLoading(true);
 
     const loadData = async () => {
+      setLoading(true);
       try {
         const dbRange = RANGE_TO_DB[range];
         const [pm25, co2, no2] = await Promise.all([
@@ -77,11 +87,11 @@ export function AnalyticsView({ authToken }: AnalyticsViewProps) {
         if (range === '12h') len = Math.min(len, 12);
         if (range === '3d') len = Math.min(len, 72);
 
-        const merged = [];
+        const merged: AnalyticsPoint[] = [];
         for (let i = 0; i < len; i++) {
           const p25 = pm25[i]?.value ?? 0;
           merged.push({
-            time: pm25[i]?.label,
+            time: pm25[i]?.label ?? '',
             pm25: p25,
             pm10: p25 * 1.18,
             co2: co2[i]?.value ?? 0,
@@ -103,11 +113,11 @@ export function AnalyticsView({ authToken }: AnalyticsViewProps) {
       }
     };
 
-    loadData();
+    void loadData();
     return () => { cancelled = true; };
   }, [authToken, range, showForecast, forecastHorizon]);
 
-  const combinedData = [...historyData];
+  const combinedData: AnalyticsPoint[] = [...historyData];
   if (showForecast && forecastData.length > 0) {
     for (const f of forecastData) {
       combinedData.push({
@@ -122,9 +132,12 @@ export function AnalyticsView({ authToken }: AnalyticsViewProps) {
     }
   }
 
-  const formatXAxis = (tickItem: any) => {
+  const formatXAxis = (tickItem: unknown) => {
     try {
-      const d = new Date(tickItem);
+      const normalizedTick = typeof tickItem === 'string' || typeof tickItem === 'number'
+        ? tickItem
+        : String(tickItem ?? '');
+      const d = new Date(normalizedTick);
       if (isNaN(d.getTime())) return String(tickItem);
       
       if (range === '1h' || range === '6h' || range === '12h') {

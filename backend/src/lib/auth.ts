@@ -3,7 +3,7 @@ import type { UserRole } from '@climence/shared';
 import { verifyAuthToken } from '../features/auth/token';
 import { sendForbidden, sendUnauthorized } from './http';
 
-const AUTH_BYPASS_ENABLED = process.env.CLIMENCE_AUTH_BYPASS !== '0';
+const AUTH_BYPASS_ENABLED = process.env.CLIMENCE_AUTH_BYPASS === '1';
 
 function extractBearerToken(req: Request) {
   const authHeader = req.header('authorization');
