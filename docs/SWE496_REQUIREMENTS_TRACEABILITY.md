@@ -12,7 +12,7 @@ Status scale:
 | --- | --- | --- | --- | --- |
 | FR-01 | Collect pollution data from IoT, drones, external APIs | 6.1.A | Partial | `simulator/src/DroneDevice.ts`, `simulator/src/FleetManager.ts`, `backend/src/routes/telemetry.ts` |
 | FR-02 | Secure login with ministry credentials | 6.1.B | Implemented | `backend/src/routes/auth.ts`, `frontend/src/App.tsx` login flow, `backend/src/features/auth/lockout.ts` (5 fails / 10 min → 15 min lock per UC-A6) |
-| FR-03 | Role-based access (admin/analyst/viewer) | 6.1.B | Partial | Auth roles enforced for protected APIs and admin alert settings; broader module-level RBAC still expanding |
+| FR-03 | Role-based access (admin/analyst/viewer) | 6.1.B | Implemented | `backend/src/features/auth/permissions.ts` defines role permissions; `backend/src/routes/auth.ts` exposes them on `/api/auth/me`; `backend/src/routes/alerts.ts`, `backend/src/routes/analytics.ts`, and `backend/src/routes/telemetry.ts` enforce explicit route roles; `backend/src/routes/rbac.test.ts` covers viewer/analyst/admin behavior |
 | FR-04 | Real-time pollution map | 6.1.C | Implemented | `frontend/src/components/map/RiyadhGoogleMap.tsx` |
 | FR-05 | Zoom/pan between regions/cities/zones | 6.1.C | Partial | Google map zoom/pan implemented; region flow incomplete |
 | FR-06 | Pollutant switching (CO2/NO2/PM2.5/O3...) | 6.1.C | Partial | UI switching in `frontend/src/App.tsx` |
@@ -36,7 +36,7 @@ Status scale:
 | NFR-02 | Scale with users/data growth | 6.2.B | Partial | Monorepo layering supports growth; no load validation yet |
 | NFR-03 | 24/7 availability, 99.5% uptime | 6.2.C | Planned | No deployment SLO/monitoring stack yet |
 | NFR-04 | Backups and recovery | 6.2.C | Planned | No backup automation yet |
-| NFR-05 | Authentication required | 6.2.D | Partial | Auth required for user-facing API routes + WebSocket; ingestion POST remains device channel |
+| NFR-05 | Authentication required | 6.2.D | Implemented | `backend/src/lib/auth.ts` guards protected routes; `backend/src/routes/telemetry.ts` now requires analyst/admin auth for ingestion; `backend/src/ws.ts` requires WebSocket auth; `simulator/src/FleetManager.ts` sends bearer auth for telemetry POSTs |
 | NFR-06 | Encrypt data at rest/in transit | 6.2.D | Planned | TLS/encryption controls pending |
 | NFR-07 | Desktop/tablet/mobile support | 6.2.E | Partial | Responsive dashboard CSS implemented |
 | NFR-08 | Arabic/English interface | 6.2.E | Partial | Nav/KPIs/panels/banner/report modal translate via `frontend/src/lib/i18n.ts`; deeper labels and validation messages still English |
@@ -59,7 +59,7 @@ Status scale:
 | UC-A3 Receive Alerts | Implemented | Active threshold-based alerts and feed |
 | UC-A4 Set Alert Thresholds | Implemented | Completed in this iteration |
 | UC-A5 Schedule Report | Partial | Client-side schedule creation in Reports modal; background execution not yet automated |
-| UC-A6 Log In | Implemented | Login/session/token flow + lockout policy (5 failures in 10 min → 15 min lock with `Retry-After` header), `POST /api/auth/logout` endpoint |
+| UC-A6 Log In | Implemented | Login/session/token flow + lockout policy (5 failures in 10 min → 15 min lock with `Retry-After` header), `POST /api/auth/logout`, and `/api/auth/me` permission payload |
 
 ## This Iteration (2026-04-24)
 
@@ -98,3 +98,11 @@ Delivered requirement slice:
 - FR-01 realism hardening: restored hazard-driven swarm behavior in the simulator (`FleetManager` polls `/api/alerts/active`, clusters hazards, dispatches up to 3 nearest drones).
 - FR-01 data channel hardening: added `INVESTIGATING_HAZARD` state to shared telemetry contract and expanded deterministic environment map to 5 hotspots.
 - NFR-01 partial hardening: added simulator tests for investigation transition and hotspot pollution burn-down (`simulator/src/device/DroneDevice.test.ts`).
+
+## Iteration (2026-04-25 — Haithem · RBAC slice)
+
+Delivered requirement slice:
+
+- FR-03: module-level RBAC now has a shared `AuthPermissions` contract, backend permission matrix, `/api/auth/me` permission payload, and explicit role guards across alerts, analytics, and telemetry routes.
+- NFR-05: telemetry ingestion now requires an authenticated analyst/admin bearer token, and the simulator attaches its default analyst token when posting fleet telemetry.
+- UC-A6 hardening: `/api/auth/me` now returns `{ user, permissions }` so the frontend can render role-appropriate controls without duplicating backend policy.

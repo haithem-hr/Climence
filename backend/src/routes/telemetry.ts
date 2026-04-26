@@ -1,13 +1,16 @@
 import { Router } from 'express';
 import { getHistory, getLatest, insertFleet } from '../db/queries';
+import { rolesForPermission } from '../features/auth/permissions';
 import { validateTelemetryPayload } from '../features/telemetry/validation';
-import { requireAuth } from '../lib/auth';
+import { requireAuth, requireRole } from '../lib/auth';
 import { sendBadRequest, sendInternalError, sendNotFound } from '../lib/http';
 import { broadcastSnapshot } from '../ws';
 
 const router = Router();
+const canViewTelemetry = rolesForPermission('canViewTelemetry');
+const canIngestTelemetry = rolesForPermission('canIngestTelemetry');
 
-router.post('/', (req, res) => {
+router.post('/', requireAuth, requireRole(...canIngestTelemetry), (req, res) => {
   const validation = validateTelemetryPayload(req.body);
   if (!validation.ok) {
     sendBadRequest(res, validation.error);
@@ -26,7 +29,7 @@ router.post('/', (req, res) => {
   }
 });
 
-router.get('/latest', requireAuth, (_req, res) => {
+router.get('/latest', requireAuth, requireRole(...canViewTelemetry), (_req, res) => {
   try {
     res.status(200).json(getLatest());
   } catch (err) {
@@ -34,7 +37,7 @@ router.get('/latest', requireAuth, (_req, res) => {
   }
 });
 
-router.get('/history/:droneId', requireAuth, (req, res) => {
+router.get('/history/:droneId', requireAuth, requireRole(...canViewTelemetry), (req, res) => {
   try {
     const droneId = Array.isArray(req.params.droneId) ? req.params.droneId[0] : req.params.droneId;
     if (!droneId) {

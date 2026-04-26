@@ -55,6 +55,8 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 
 ---
 
+> ✅ **DONE — 2026-04-25.** Shipped on branch `haithem/backend-rbac-permissions`. Files: [backend/src/features/auth/permissions.ts](../../backend/src/features/auth/permissions.ts) (role-to-permission matrix), [backend/src/features/auth/permissions.test.ts](../../backend/src/features/auth/permissions.test.ts) (matrix coverage), [backend/src/routes/rbac.test.ts](../../backend/src/routes/rbac.test.ts) (auth + role guard coverage), [backend/src/routes/auth.ts](../../backend/src/routes/auth.ts) (`/api/auth/me` returns permissions), [backend/src/routes/alerts.ts](../../backend/src/routes/alerts.ts), [backend/src/routes/analytics.ts](../../backend/src/routes/analytics.ts), [backend/src/routes/telemetry.ts](../../backend/src/routes/telemetry.ts), [shared/src/auth.ts](../../shared/src/auth.ts), [simulator/src/FleetManager.ts](../../simulator/src/FleetManager.ts), [backend/package.json](../../backend/package.json). Root test suite: 35/35 green; typecheck, lint, and dev boot smoke all green. Traceability: FR-03 and NFR-05 promoted Partial → Implemented. **Note for the team:** telemetry ingest now requires an analyst/admin bearer token; the simulator sends its default analyst token automatically.
+
 ### P1 — Tighten RBAC beyond alert config
 
 **Files:** [backend/src/lib/auth.ts](../../backend/src/lib/auth.ts), every file in [backend/src/routes/](../../backend/src/routes/)
@@ -70,7 +72,7 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 - Analyst token can acknowledge alerts (P3) but not change thresholds.
 - `/api/auth/me` returns `{ user, permissions: {...} }`.
 
-**Dependencies:** Haithem's WS auth hook (already in place — just don't break it).
+**Dependencies:** Hamza's WS auth hook (already in place — just don't break it).
 
 ---
 

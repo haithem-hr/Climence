@@ -1,18 +1,20 @@
 import { Router } from 'express';
-import { UserRole } from '@climence/shared';
 import {
   getActiveAlerts,
   getAlertThresholdConfig,
   setAlertThresholdPm25,
 } from '../db/queries';
 import { validateAlertThresholdInput } from '../features/alerts/config';
+import { rolesForPermission } from '../features/auth/permissions';
 import { requireAuth, requireRole } from '../lib/auth';
 import { sendBadRequest, sendInternalError } from '../lib/http';
 import { broadcastSnapshot } from '../ws';
 
 const router = Router();
+const canViewAlerts = rolesForPermission('canViewAlerts');
+const canManageAlertThresholds = rolesForPermission('canManageAlertThresholds');
 
-router.get('/active', requireAuth, (_req, res) => {
+router.get('/active', requireAuth, requireRole(...canViewAlerts), (_req, res) => {
   try {
     const config = getAlertThresholdConfig();
     res.status(200).json(getActiveAlerts(config.pm25_threshold));
@@ -21,7 +23,7 @@ router.get('/active', requireAuth, (_req, res) => {
   }
 });
 
-router.get('/config', requireAuth, (_req, res) => {
+router.get('/config', requireAuth, requireRole(...canViewAlerts), (_req, res) => {
   try {
     const config = getAlertThresholdConfig();
     res.status(200).json({
@@ -33,7 +35,7 @@ router.get('/config', requireAuth, (_req, res) => {
   }
 });
 
-router.put('/config', requireAuth, requireRole(UserRole.ADMINISTRATOR), (req, res) => {
+router.put('/config', requireAuth, requireRole(...canManageAlertThresholds), (req, res) => {
   const validation = validateAlertThresholdInput(req.body);
   if (!validation.ok) {
     sendBadRequest(res, validation.error);

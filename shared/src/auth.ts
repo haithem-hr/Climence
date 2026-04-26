@@ -24,6 +24,24 @@ export interface LoginResponse {
   expiresAt: string;
 }
 
+export interface AuthPermissions {
+  canViewTelemetry: boolean;
+  canViewAnalytics: boolean;
+  canViewAlerts: boolean;
+  canIngestTelemetry: boolean;
+  canManageAlerts: boolean;
+  canManageAlertThresholds: boolean;
+  canExportReports: boolean;
+  canManageSensors: boolean;
+}
+
+export type AuthPermission = keyof AuthPermissions;
+
+export interface AuthMeResponse {
+  user: AuthUser;
+  permissions: AuthPermissions;
+}
+
 // Login lockout policy (UC-A6 / FR-02). Lives in shared so the frontend can
 // surface countdowns / messaging consistently with the server-side enforcement.
 export const MAX_LOGIN_FAILURES = 5;

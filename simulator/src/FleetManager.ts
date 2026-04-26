@@ -108,7 +108,11 @@ export class FleetManager {
         }),
       };
 
-      await axios.post(this.endpoint, payload, { timeout: 10_000 });
+      const token = await this.ensureAuthToken();
+      await axios.post(this.endpoint, payload, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        timeout: 10_000,
+      });
       console.log(
         `[${new Date().toISOString()}] Broadcasted telemetry for ${this.drones.length} drones to ${this.endpoint}`,
       );

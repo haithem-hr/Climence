@@ -1,7 +1,8 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { authenticateUser } from '../features/auth/users';
 import { createAuthToken } from '../features/auth/token';
 import { loginLockout } from '../features/auth/lockout';
+import { getPermissionsForUser } from '../features/auth/permissions';
 import { validateLoginInput } from '../features/auth/validation';
 import { requireAuth } from '../lib/auth';
 import {
@@ -58,9 +59,20 @@ router.post('/login', (req, res) => {
   });
 });
 
-router.get('/me', requireAuth, (req, res) => {
-  res.status(200).json({ user: req.authUser });
-});
+export function getCurrentUser(req: Request, res: Response) {
+  const user = req.authUser;
+  if (!user) {
+    sendUnauthorized(res, 'Authentication required.');
+    return;
+  }
+
+  res.status(200).json({
+    user,
+    permissions: getPermissionsForUser(user),
+  });
+}
+
+router.get('/me', requireAuth, getCurrentUser);
 
 // Stateless JWT today: nothing to revoke server-side. The endpoint exists so
 // the dashboard has a clean call to make and so we have a place to add token
