@@ -8,26 +8,47 @@ interface HeatLayerApi {
   heatLayer: (points: [number, number, number][], opts: unknown) => L.Layer;
 }
 
-export function HeatmapLayer({ drones }: { drones: TelemetryRecord[] }) {
+export interface HeatmapPoint {
+  lat: number;
+  lng: number;
+  intensity: number;
+}
+
+export function HeatmapLayer({
+  drones,
+  points,
+  radius = 70,
+  blur = 60,
+  max = 1,
+  gradient = { 0.2: '#10b981', 0.5: '#f59e0b', 1.0: '#ef4444' },
+}: {
+  drones?: TelemetryRecord[];
+  points?: HeatmapPoint[];
+  radius?: number;
+  blur?: number;
+  max?: number;
+  gradient?: Record<number, string>;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    if (!drones || drones.length === 0) return;
-    const heatData: [number, number, number][] = drones.map(d => [d.lat, d.lng, d.pm25]);
+    const heatPoints = points ?? drones?.map(d => ({ lat: d.lat, lng: d.lng, intensity: d.pm25 })) ?? [];
+    if (heatPoints.length === 0) return;
+    const heatData: [number, number, number][] = heatPoints.map(point => [point.lat, point.lng, point.intensity]);
     const heatLayer = (L as unknown as HeatLayerApi)
       .heatLayer(heatData, {
-        radius: 70,
-        blur: 60,
-        max: 200,
+        radius,
+        blur,
+        max,
         maxZoom: 13,
-        gradient: { 0.2: '#10b981', 0.5: '#f59e0b', 1.0: '#ef4444' },
+        gradient,
       })
       .addTo(map);
 
     return () => {
       map.removeLayer(heatLayer);
     };
-  }, [map, drones]);
+  }, [blur, drones, gradient, map, max, points, radius]);
 
   return null;
 }

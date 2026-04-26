@@ -594,6 +594,7 @@ html[dir='rtl'] .nav-item .count {
   position: relative;
   overflow: hidden;
   background: var(--bg-0);
+  isolation: isolate;
 }
 
 .map {
@@ -623,7 +624,7 @@ html[dir='rtl'] .nav-item .count {
 .map-fallback {
   position: absolute;
   inset: 16px;
-  z-index: 3;
+  z-index: 920;
   display: grid;
   place-content: center;
   text-align: center;
@@ -678,7 +679,7 @@ html[dir='rtl'] .nav-item .count {
 .map-panel-bl,
 .map-panel-br {
   position: absolute;
-  z-index: 3;
+  z-index: 900;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -851,6 +852,120 @@ html[dir='rtl'] .map-panel-br {
 
 .pollutant-pill.active .val {
   color: var(--ink-1);
+}
+
+.map-sensor-icon-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.map-sensor-marker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.map-sensor-core {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--marker-fill, var(--aqi-good));
+  border: 2px solid oklch(1 0 0 / 0.95);
+  box-shadow: 0 0 0 3px oklch(0 0 0 / 0.24), 0 6px 18px color-mix(in oklch, var(--marker-fill, var(--aqi-good)) 34%, transparent);
+}
+
+.map-sensor-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--marker-fill, var(--aqi-good)) 68%, white);
+  opacity: 0.38;
+}
+
+.map-sensor-marker.is-offline {
+  opacity: 0.35;
+}
+
+.map-sensor-marker.is-gathering-data {
+  animation: map-sensor-pulse 1.65s ease-in-out infinite;
+}
+
+.map-sensor-marker.is-low-battery .map-sensor-ring {
+  inset: 1px;
+  border: 2px solid var(--warn);
+  opacity: 0.92;
+  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.72), 0 0 12px color-mix(in oklch, var(--warn) 38%, transparent);
+}
+
+.map-sensor-battery {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px;
+  height: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.92);
+  border: 1px solid color-mix(in oklch, var(--warn) 30%, white);
+  box-shadow: 0 4px 12px oklch(0.34 0.01 80 / 0.16);
+}
+
+.map-sensor-battery-cell {
+  width: 5px;
+  height: 4px;
+  border: 1.5px solid var(--warn);
+  border-radius: 1px;
+}
+
+.map-sensor-battery-tip {
+  width: 1.5px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--warn);
+}
+
+@keyframes map-sensor-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.leaflet-tooltip.map-sensor-tooltip {
+  background: oklch(1 0 0 / 0.94);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 14px 30px oklch(0.34 0.01 80 / 0.16);
+  color: var(--ink-0);
+  padding: 8px 10px;
+}
+
+.leaflet-tooltip-top.map-sensor-tooltip::before {
+  border-top-color: var(--line-strong);
+}
+
+.map-sensor-tooltip-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-0);
+  margin-bottom: 2px;
+}
+
+.map-sensor-tooltip-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-2);
 }
 
 .sensor {
@@ -1429,7 +1544,7 @@ html[dir='rtl'] .side {
   width: 420px;
   background: var(--bg-0);
   border-left: 1px solid var(--line);
-  z-index: 12;
+  z-index: 930;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
@@ -1543,6 +1658,7 @@ html[dir='rtl'] .drawer {
   color: var(--ink-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  z-index: 890;
 }
 
 .statusbar .item {
@@ -1662,10 +1778,24 @@ html[dir='rtl'] .drawer {
   gap: 6px;
 }
 
+/* ---- Hamburger & nav overlay (hidden on desktop, shown ≤ 1024px) ---- */
+.hamburger-btn {
+  display: none;
+}
+
+.nav-close-btn {
+  display: none;
+}
+
+.nav-overlay {
+  display: none;
+}
+
 .desktop-only {
   display: inline-flex;
 }
 
+/* ---- Auth screen ---- */
 .auth-screen {
   min-height: 100vh;
   display: grid;
@@ -1770,6 +1900,7 @@ html[dir='rtl'] .drawer {
   color: var(--ink-2);
 }
 
+/* ─────────── ≤ 1420px — gentle squeeze ─────────── */
 @media (max-width: 1420px) {
   .app {
     grid-template-columns: 220px 1fr 340px;
@@ -1792,30 +1923,93 @@ html[dir='rtl'] .drawer {
   }
 }
 
-@media (max-width: 1150px) {
+/* ─────────── ≤ 1280px — narrow side rail to 320px ─────────── */
+@media (max-width: 1280px) {
   .app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 58px minmax(560px, 1fr) auto;
+    grid-template-columns: 220px 1fr 320px;
+  }
+
+  html[dir='rtl'] .app {
+    grid-template-columns: 320px 1fr 220px;
+  }
+
+  .side-group {
+    padding: 14px 16px;
+  }
+
+  .side-title {
+    font-size: 19px;
+  }
+
+  .drawer {
+    width: 380px;
+  }
+}
+
+/* ─────────── ≤ 1024px — hide nav rail, show hamburger ─────────── */
+@media (max-width: 1024px) {
+  .app {
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: 58px 1fr;
     grid-template-areas:
-      'topbar'
-      'main'
-      'side';
-    height: auto;
-    min-height: 100vh;
+      'topbar topbar'
+      'main side';
+    height: 100vh;
   }
 
+  html[dir='rtl'] .app {
+    grid-template-columns: 320px 1fr;
+    grid-template-areas:
+      'topbar topbar'
+      'side main';
+  }
+
+  /* Nav rail becomes a slide-out drawer */
   .nav {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 1100;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: 18px 0 40px oklch(0 0 0 / 0.18);
   }
 
-  .main {
-    min-height: 620px;
+  html[dir='rtl'] .nav {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+    box-shadow: -18px 0 40px oklch(0 0 0 / 0.18);
   }
 
-  .side {
-    border-left: 0;
-    border-top: 1px solid var(--line);
-    overflow: visible;
+  .nav.nav--open {
+    transform: translateX(0);
+  }
+
+  .nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: oklch(0.08 0.006 270 / 0.52);
+    backdrop-filter: blur(4px);
+    animation: fade-in 0.18s ease-out;
+  }
+
+  .hamburger-btn {
+    display: inline-grid;
+  }
+
+  .nav-close-btn {
+    display: inline-grid;
+    margin-left: auto;
+  }
+
+  html[dir='rtl'] .nav-close-btn {
+    margin-left: 0;
+    margin-right: auto;
   }
 
   .desktop-only {
@@ -1845,10 +2039,11 @@ html[dir='rtl'] .drawer {
   }
 
   .drawer {
-    width: min(94vw, 420px);
+    width: min(94vw, 380px);
   }
 }
 
+/* ─────────── ≤ 760px — stack KPIs ─────────── */
 @media (max-width: 760px) {
   .kpi-strip {
     grid-template-columns: 1fr;
@@ -1896,6 +2091,61 @@ html[dir='rtl'] .drawer {
   .banner {
     margin: 12px;
     padding: 10px;
+  }
+}
+
+/* ─────────── ≤ 640px — side rail becomes bottom-sheet ─────────── */
+@media (max-width: 640px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 58px minmax(50vh, 1fr) auto;
+    grid-template-areas:
+      'topbar'
+      'main'
+      'side';
+    height: auto;
+    min-height: 100vh;
+  }
+
+  html[dir='rtl'] .app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'topbar'
+      'main'
+      'side';
+  }
+
+  .side {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    overflow: visible;
+    /* Bottom-sheet styling: rounded top corners, slight shadow */
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 24px oklch(0.34 0.01 80 / 0.08);
+  }
+
+  html[dir='rtl'] .side {
+    border-right: 0;
+  }
+
+  .side::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line-strong);
+    margin: 10px auto 4px;
+    opacity: 0.6;
+  }
+
+  .main {
+    min-height: 50vh;
+  }
+
+  .drawer {
+    width: 100vw;
+    border-radius: 18px 18px 0 0;
   }
 }
 
@@ -2014,4 +2264,3 @@ html[dir="rtl"] .trend-pill { letter-spacing: 0; }
 html[dir="rtl"] .modal-head,
 html[dir="rtl"] .sched-row,
 html[dir="rtl"] .sched-item { direction: rtl; }
-

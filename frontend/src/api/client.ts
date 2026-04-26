@@ -19,6 +19,33 @@ export async function fetchHistory(droneId: string, token?: string): Promise<Tel
   return res.json() as Promise<TelemetryRecord[]>;
 }
 
+export async function fetchHistoryByZone(
+  pollutant: string,
+  range: string,
+  lat?: number,
+  lng?: number,
+  radiusKm?: number,
+  token?: string
+): Promise<{ label: string; value: number }[]> {
+  const params = new URLSearchParams({ pollutant, range });
+  if (lat !== undefined && lng !== undefined && radiusKm !== undefined) {
+    params.set('zone', `${lat},${lng},${radiusKm}`);
+  }
+  const res = await fetch(`${API_BASE_URL}/api/analytics/history?${params.toString()}`, {
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET history by zone failed: ${res.status}`);
+  return res.json() as Promise<{ label: string; value: number }[]>;
+}
+
+export async function fetchForecast(hours: number, token?: string) {
+  const res = await fetch(`${API_BASE_URL}/api/analytics/forecast?hours=${hours}`, {
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET forecast failed: ${res.status}`);
+  return res.json();
+}
+
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',

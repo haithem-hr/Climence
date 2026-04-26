@@ -45,6 +45,7 @@ export class FleetManager {
   private cachedHazards: HazardZone[] = [];
   private lastTickMs = Date.now();
   private lastAlertPollMs = 0;
+  private lastBaselinePollMs = 0;
   private tickInFlight = false;
 
   constructor(droneCount: number, endpoint: string) {
@@ -96,6 +97,11 @@ export class FleetManager {
     this.lastTickMs = nowMs;
     DroneDevice.advanceEnvironment(elapsedSec);
 
+    if (nowMs - this.lastBaselinePollMs > 300_000) {
+      this.lastBaselinePollMs = nowMs;
+      void this.fetchRealWorldBaseline();
+    }
+
     try {
       await this.refreshHazardsIfDue(nowMs);
       this.reconcileHazardAssignments();
@@ -137,6 +143,25 @@ export class FleetManager {
     }
   }
 
+  private async fetchRealWorldBaseline() {
+    try {
+      const res = await axios.get(
+        'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=24.7136&longitude=46.6753&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,dust&timezone=auto',
+        { timeout: 10_000 }
+      );
+      const current = res.data?.current;
+      if (current) {
+        DroneDevice.globalBaseline.pm25 = current.pm2_5 || 10;
+        DroneDevice.globalBaseline.co2 = 400 + ((current.pm2_5 || 10) * 0.5); 
+        DroneDevice.globalBaseline.no2 = current.nitrogen_dioxide || 20;
+        
+        console.log(`[${new Date().toISOString()}] 🌍 Real-world Riyadh AQI baseline synced: PM2.5=${DroneDevice.globalBaseline.pm25.toFixed(1)}, NO2=${DroneDevice.globalBaseline.no2.toFixed(1)}`);
+      }
+    } catch (err) {
+      console.error(`[${new Date().toISOString()}] ⚠️ Failed to fetch live AQI from Open-Meteo:`, err instanceof Error ? err.message : String(err));
+    }
+  }
+
   private async fetchActiveAlerts() {
     const token = await this.ensureAuthToken();
     if (!token) return [];
@@ -147,7 +172,7 @@ export class FleetManager {
         timeout: 10_000,
       });
       return Array.isArray(response.data) ? response.data : [];
-    } catch (err) {
+    } catch (err: any) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         this.authToken = null;
         this.authTokenExpiresAtMs = 0;
@@ -160,11 +185,17 @@ export class FleetManager {
         });
         return Array.isArray(retry.data) ? retry.data : [];
       }
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        console.error(`[sim] fetchActiveAlerts 404. Endpoint: ${this.alertsEndpoint}`);
+      }
       throw err;
     }
   }
 
   private async ensureAuthToken(forceRefresh = false) {
+    // --- TEMPORARY AUTH BYPASS REQEUSTED BY USER ---
+    return "dev-bypass-token";
+    // -----------------------------------------------
     const now = Date.now();
     if (
       !forceRefresh &&
@@ -185,13 +216,12 @@ export class FleetManager {
       );
       this.authToken = response.data.token;
       this.authTokenExpiresAtMs = response.data.expiresAt
-        ? new Date(response.data.expiresAt).getTime()
-        : now + 30 * 60 * 1000;
+        ? new Date(response.data.expiresAt as string).getTime()
+        : now + 3600_000;
       return this.authToken;
-    } catch (err) {
+    } catch (err: any) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`[${new Date().toISOString()}] Simulator auth failed. Error: ${message}`);
-      return null;
+      throw new Error(`Simulator auth failed. Error: ${message}`);
     }
   }
 

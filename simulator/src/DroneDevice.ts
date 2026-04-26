@@ -43,6 +43,12 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export class DroneDevice {
+  public static globalBaseline = {
+    pm25: 10,
+    co2: 400,
+    no2: 20
+  };
+
   public readonly uuid: string;
   public state: DroneState = DroneState.IDLE;
   public batteryLevel = 100;
@@ -222,7 +228,7 @@ export class DroneDevice {
       airQuality: {
         pm25: Number(spatialData.pm25.toFixed(2)),
         co2: Number(spatialData.co2.toFixed(2)),
-        no2: Number((5 + spatialData.pm25 * 0.06 + this.nextRandom() * 2).toFixed(2)),
+        no2: Number((DroneDevice.globalBaseline.no2 + spatialData.pm25 * 0.02 + this.nextRandom() * 2).toFixed(2)),
         temperature: Number((baseTemp + (this.nextRandom() - 0.5) * 2).toFixed(2)),
         humidity: Number(clamp(baseHumidity + (this.nextRandom() - 0.5) * 6, 10, 80).toFixed(2)),
       },
@@ -316,8 +322,8 @@ export class DroneDevice {
     }
 
     const ambientWeight = 1 / Math.pow(20, 2);
-    weightedPm25 += 10 * ambientWeight;
-    weightedCo2 += 400 * ambientWeight;
+    weightedPm25 += DroneDevice.globalBaseline.pm25 * ambientWeight;
+    weightedCo2 += DroneDevice.globalBaseline.co2 * ambientWeight;
     totalWeight += ambientWeight;
 
     return {

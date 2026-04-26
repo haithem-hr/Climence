@@ -33,6 +33,13 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 
 ## Prioritized tasks
 
+> ✅ **DONE — 2026-04-25.**
+> Branch: `oussama/frontend-map-drill-down`.
+> Files changed: [frontend/src/components/map/RiyadhGoogleMap.tsx](../../frontend/src/components/map/RiyadhGoogleMap.tsx), [frontend/src/App.tsx](../../frontend/src/App.tsx), [package-lock.json](../../package-lock.json).
+> Tests: **27/27 green** (`npm run test --silent`), plus frontend type/lint green (`npm run typecheck -w @climence/dashboard --silent`, `npm run lint -w @climence/dashboard --silent`).
+> Requirement IDs moved: **FR-05 (Partial → Implemented)**; **UC1** strengthened through viewport-aware live map drill-down behavior.
+> Heads-up: hotspot circles already accept `radiusKm` and currently fallback to 500m until backend cluster payload lands.
+
 ### P0 — Proper map drill-down (FR-05)
 
 **Files:** [frontend/src/components/map/RiyadhGoogleMap.tsx](../../frontend/src/components/map/RiyadhGoogleMap.tsx), [frontend/src/App.tsx](../../frontend/src/App.tsx)
@@ -51,6 +58,13 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 **Dependencies:** Abderraouf's hotspot cluster shape (P0).
 
 ---
+
+> ✅ **DONE — 2026-04-25.**
+> Branch: `oussama/frontend-map-drill-down`.
+> Files changed: [frontend/src/components/map/RiyadhGoogleMap.tsx](../../frontend/src/components/map/RiyadhGoogleMap.tsx), [frontend/src/components/map/markerState.ts](../../frontend/src/components/map/markerState.ts), [frontend/src/App.tsx](../../frontend/src/App.tsx), [frontend/src/index.css](../../frontend/src/index.css), [frontend/test/markerState.test.ts](../../frontend/test/markerState.test.ts), [frontend/package.json](../../frontend/package.json).
+> Tests: **29/29 green** (`npm run test --silent`), plus repo type/lint green (`npm run typecheck`, `npm run lint`), frontend build green (`npm run build -w @climence/dashboard`), and manual dev boot verified (`npm run dev`).
+> Requirement IDs moved: none — **FR-04** remained Implemented; **UC1** notes were refreshed with state-aware live marker evidence.
+> Heads-up: `INVESTIGATING_HAZARD` currently falls back to the default marker visual, so the next map slice only needs to extend `markerState.ts` if product wants a dedicated icon.
 
 ### P1 — Encode drone state on markers
 
@@ -71,6 +85,13 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 **Dependencies:** none.
 
 ---
+
+> ✅ **DONE — 2026-04-25.**
+> Branch: `oussama/frontend-map-drill-down`.
+> Files changed: [frontend/src/App.tsx](../../frontend/src/App.tsx), [frontend/src/components/map/RiyadhGoogleMap.tsx](../../frontend/src/components/map/RiyadhGoogleMap.tsx), [frontend/src/components/map/HeatmapLayer.tsx](../../frontend/src/components/map/HeatmapLayer.tsx), [frontend/src/lib/mapMetrics.ts](../../frontend/src/lib/mapMetrics.ts), [frontend/test/mapMetrics.test.ts](../../frontend/test/mapMetrics.test.ts).
+> Tests: **31/31 green** (`npm run test --silent`), plus repo type/lint green (`npm run typecheck`, `npm run lint`), frontend build green (`npm run build -w @climence/dashboard`), and manual dev boot verified (`npm run dev`).
+> Requirement IDs moved: **FR-06 (Partial → Implemented)**; **UC1** strengthened through metric-aware heatmap, hotspot, and legend switching.
+> Heads-up: non-PM2.5 hotspot circles currently fall back to sensor-derived ranking until backend pollutant-specific hotspot aggregates land.
 
 ### P2 — Pollutant switching that actually switches (FR-06)
 
@@ -93,7 +114,7 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 
 ### P3 — Responsive shell + layout perf (NFR-07)
 
-**Files:** [frontend/src/index.css](../../frontend/src/index.css), [frontend/src/App.tsx](../../frontend/src/App.tsx)
+**Files:** [frontend/src/index.css](../../frontend/src/index.css), [frontend/src/App.tsx](../../frontend/src/App.tsx), [frontend/src/components/AuthScreen.tsx](../../frontend/src/components/AuthScreen.tsx), [frontend/src/components/Shell.tsx](../../frontend/src/components/Shell.tsx), [frontend/src/components/Dashboard.tsx](../../frontend/src/components/Dashboard.tsx), [frontend/src/hooks/useDashboardData.ts](../../frontend/src/hooks/useDashboardData.ts)
 
 **What to do:**
 - Coordinate with Imad — he owns the deep responsive rules and a11y. Your job is the **shell skeleton**:
@@ -107,6 +128,13 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 - `App.tsx` shrinks to ≤ 300 lines and is purely composition.
 
 **Dependencies:** none (Imad's polish can layer on).
+
+> ✅**DONE** — 2026-04-25
+>
+> - Split App.tsx (1786 → 118 lines) into: `AuthScreen.tsx`, `Shell.tsx`, `Dashboard.tsx`, `useDashboardData.ts`.
+> - ≤1280px: side rail narrows to 320px. ≤1024px: nav becomes slide-out drawer with hamburger + backdrop overlay. ≤640px: side rail → bottom-sheet with drag handle.
+> - All breakpoints RTL-aware. iPad 1024×768: map + side rail visible, no horizontal scrollbars.
+> - Typecheck ✅ · Lint ✅ · 23/23 tests ✅ · Build ✅ (840ms).
 
 ---
 
@@ -125,6 +153,12 @@ You own **everything the user sees first**: the app shell, the KPI strip, the Ri
 - Wind compass tells a 1-hour story, not just a snapshot.
 
 **Dependencies:** Abderraouf P1 (server trend), P3 (server forecast).
+
+> **BLOCKED** — 2026-04-25
+>
+> Waiting on Abderraouf's server-side trend endpoint (P1) and forecast endpoint (P3).
+> Client-side `detectTrend` and `computeForecast` already work as fallbacks in `useDashboardData.ts`.
+> Once the server fields land in the snapshot shape, wiring is straightforward.
 
 ---
 

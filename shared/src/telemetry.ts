@@ -67,6 +67,46 @@ export interface Hotspot {
   avg_pm25: number;
 }
 
+/** DBSCAN-lite cluster returned by the hotspot detection algorithm (P0) */
+export interface HotspotCluster {
+  centroidLat: number;
+  centroidLng: number;
+  radiusKm: number;
+  peakPm25: number;
+  memberUuids: string[];
+  score: number; // normalised 0-1 severity
+}
+
+/** Server-side trend signal (P1) */
+export interface TrendSignal {
+  slope: number; // µg/m³ per minute
+  direction: 'worsening' | 'stable' | 'improving';
+  confidence: number; // R² of the regression, 0-1
+  windowMinutes: number;
+}
+
+/** One forecast hour (P3) */
+export interface ForecastPoint {
+  hourIso: string;
+  aqi: number;
+  pm25: number;
+  pm10: number;
+  co2: number;
+  no2: number;
+  dust: number;
+  band: string; // AqiBandKey
+  confidence: number; // 0-1
+}
+
+/** Rule-based pollution source entry (P4) */
+export interface SourceAttribution {
+  key: string; // 'traffic' | 'industry' | 'dust' | 'other'
+  name: string;
+  pct: number; // 0-100
+  confidence: number;
+  drivers: string[];
+}
+
 export interface AlertThresholdConfig {
   pm25_threshold: number;
   updated_at: string;

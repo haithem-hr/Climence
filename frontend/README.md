@@ -69,7 +69,7 @@ src/
 
 Copy `.env.example` to `.env.local` and fill in:
 
-- `VITE_GOOGLE_MAPS_API_KEY` — Maps JavaScript API key (Maps Tiles + JS API enabled).
+- `VITE_CLIMENCE_API_URL` — optional backend URL override if the API is not running on the default local origin.
 
 All Vite env vars must start with `VITE_`.
 
