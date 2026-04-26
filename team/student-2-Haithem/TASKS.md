@@ -94,7 +94,7 @@ You own **who can do what** and **when to shout**. Every protected route enforce
 - Dashboard's banner/feed (Imad's responsibility) reflects the new shape.
 - Migration-safe: existing DBs upgrade cleanly (add column defaults).
 
-**Dependencies:** Haithem (coordinate on snapshot shape + schema migration plan).
+**Dependencies:** Hamza (coordinate on snapshot shape + schema migration plan).
 
 ---
 
