@@ -5,6 +5,7 @@ import { RIYADH_BOUNDS, RIYADH_CENTER, type AqiBandKey, type DroneState } from '
 import '../../lib/leaflet-icons';
 import { HeatmapLayer, type HeatmapPoint } from './HeatmapLayer';
 import { buildSensorMarkerHtml, describeDroneState } from './markerState';
+import { useOpenMeteoAirQuality } from '../../hooks/useOpenMeteoAirQuality';
 
 export type RiyadhMapMode = 'hardware' | 'heatmap';
 export type RiyadhZoomPreset = 'city' | 'sector' | 'zone';
@@ -59,7 +60,7 @@ interface Props {
   clusters?: RiyadhMapCluster[];
   heatmapPoints?: HeatmapPoint[];
   zoomPreset?: RiyadhZoomPreset;
-  focusTarget?: { lat: number; lng: number; zoom?: number; nonce: number } | null;
+  focusTarget?: { lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null;
   onViewportChange?: (viewport: { bounds: RiyadhMapBounds; zoom: number }) => void;
   onPickSensor: (sensor: RiyadhMapSensor) => void;
 }
@@ -272,17 +273,21 @@ export function RiyadhGoogleMap({
               icon={icon}
               zIndexOffset={sensor.status === 'offline' ? 0 : sensor.aqi}
               eventHandlers={{ click: () => onPickSensor(sensor) }}
+              ref={(ref) => {
+                if (ref && focusTarget?.uuid === sensor.uuid) {
+                  // Only open if not already open to prevent infinite re-rendering loops
+                  if (!ref.isPopupOpen()) {
+                    ref.openPopup();
+                  }
+                }
+              }}
             >
               <Tooltip className="map-sensor-tooltip" direction="top" offset={[0, -14]} opacity={1}>
                 <div className="map-sensor-tooltip-title">{sensor.label}</div>
                 <div className="map-sensor-tooltip-meta">{describeDroneState(sensor)}</div>
               </Tooltip>
               <Popup>
-                <strong>{sensor.label}</strong>
-                <div>
-                  AQI {Math.round(sensor.aqi)} · PM2.5 {sensor.pm25.toFixed(1)}
-                </div>
-                <div>{describeDroneState(sensor)}</div>
+                <SensorPopupContent sensor={sensor} />
               </Popup>
             </Marker>
           );
@@ -295,4 +300,33 @@ export function RiyadhGoogleMap({
 
 function aqiFallback(sensor: RiyadhMapSensor) {
   return sensor.status === 'offline' ? 30 : 0;
+}
+
+function SensorPopupContent({ sensor }: { sensor: RiyadhMapSensor }) {
+  const { data: omData } = useOpenMeteoAirQuality(sensor.lat, sensor.lng);
+  
+  return (
+    <div style={{ minWidth: 200 }}>
+      <strong style={{ fontSize: 14 }}>{sensor.label}</strong>
+      <div style={{ marginTop: 4, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
+        <div style={{ fontWeight: 600 }}>AQI {Math.round(sensor.aqi)} · PM2.5 {sensor.pm25.toFixed(1)} µg/m³</div>
+        <div style={{ color: 'var(--ink-3)' }}>{describeDroneState(sensor)}</div>
+      </div>
+      
+      {omData?.current ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11 }}>
+          <div>PM10: {omData.current.pm10}</div>
+          <div>O3: {omData.current.ozone}</div>
+          <div>SO2: {omData.current.sulphur_dioxide}</div>
+          <div>Dust: {omData.current.dust}</div>
+          <div>NO2: {omData.current.nitrogen_dioxide}</div>
+          <div>CO: {omData.current.carbon_monoxide}</div>
+          <div>UV: {omData.current.uv_index}</div>
+          <div>EU AQI: {omData.current.european_aqi}</div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Loading atmospheric data...</div>
+      )}
+    </div>
+  );
 }
