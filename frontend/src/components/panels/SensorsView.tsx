@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Battery, ChevronDown, ChevronUp, CloudRain, Cpu, Radio, Thermometer } from 'lucide-react';
+import { Activity, Battery, ChevronDown, ChevronUp, Cpu, Radio } from 'lucide-react';
 import type { DashboardData } from '../../hooks/useDashboardData';
 import { aqiBandFor, pm25ToAqi } from '@climence/shared';
 import { useOpenMeteoAirQuality } from '../../hooks/useOpenMeteoAirQuality';
@@ -95,20 +95,6 @@ function SensorCard({ sensor, i, d }: { sensor: RiyadhMapSensor; i: number; d: D
           </span>
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><CloudRain size={12} /> NO2</span>
-          <span className="text-xl font-medium tnum flex items-baseline gap-1 text-[var(--ink-1)]">
-            {isOffline ? '--' : Math.round(sensor.no2)}
-            <span className="text-xs text-[var(--ink-3)]">ppb</span>
-          </span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><Thermometer size={12} /> Temp</span>
-          <span className="text-xl font-medium tnum flex items-baseline gap-1 text-[var(--ink-1)]">
-            {isOffline ? '--' : Math.round(sensor.temperature)}
-            <span className="text-xs text-[var(--ink-3)]">°C</span>
-          </span>
-        </div>
-        <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><Battery size={12} /> Battery</span>
           <span className={`text-xl font-medium tnum flex items-baseline gap-1 ${!isOffline && sensor.battery < 20 ? 'text-[var(--danger)]' : 'text-[var(--ink-1)]'}`}>
             {isOffline ? '--' : Math.round(sensor.battery)}
@@ -168,7 +154,7 @@ function SensorCard({ sensor, i, d }: { sensor: RiyadhMapSensor; i: number; d: D
           </div>
           <button
             onClick={() => {
-              d.handlePickSensor({ uuid: sensor.uuid, lat: sensor.lat, lng: sensor.lng, aqi: sensor.aqi, battery: sensor.battery, label: sensor.label });
+              d.handlePickSensor(sensor);
               d.setCurrentTab('livemap');
             }}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-1)] hover:bg-[var(--bg-2)] text-[var(--brand)] transition-colors border border-[var(--line)]"
