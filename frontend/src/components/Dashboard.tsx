@@ -8,16 +8,11 @@
 import { useEffect, useState } from 'react';
 import {
   Activity,
-  AlertTriangle,
   ArrowDown,
   ArrowUp,
-  Bell,
-  Filter,
   Flame,
-  MapPin,
   Radio,
   Siren,
-  Sparkles,
   Wind,
   X,
   FileText,
@@ -26,6 +21,14 @@ import { AQI_BANDS, aqiBandFor } from '@climence/shared';
 import { useOpenMeteoAirQuality } from '../hooks/useOpenMeteoAirQuality';
 import { RiyadhGoogleMap } from './map/RiyadhGoogleMap';
 import { DispatchDialog } from './panels/DispatchDialog';
+import { AlertSettingsPanel } from './panels/AlertSettingsPanel';
+import { EventBanner } from './panels/EventBanner';
+import { FeedPanel } from './panels/FeedPanel';
+import { ForecastPanel } from './panels/ForecastPanel';
+import { HotspotsPanel } from './panels/HotspotsPanel';
+import { PollutantsPanel } from './panels/PollutantsPanel';
+import { SourcesPanel } from './panels/SourcesPanel';
+import { WeatherPanel } from './panels/WeatherPanel';
 import {
   seededSeries,
   makePath,
@@ -128,7 +131,23 @@ function CityTrendChart({
   );
 }
 
-function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose, onDispatch }: { hotspot: HotspotCard | null; historySeries: number[]; pollutantStats: PollutantStat[]; onClose: () => void; onDispatch: (target: { id: string; name: string; lat: number; lng: number }) => void }) {
+function HotspotDrawer({
+  hotspot,
+  historySeries,
+  pollutantStats,
+  onClose,
+  onDispatch,
+  onNavigate,
+  onOpenReportModal,
+}: {
+  hotspot: HotspotCard | null;
+  historySeries: number[];
+  pollutantStats: PollutantStat[];
+  onClose: () => void;
+  onDispatch: (target: { id: string; name: string; lat: number; lng: number }) => void;
+  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  onOpenReportModal?: () => void;
+}) {
   const { data: omData } = useOpenMeteoAirQuality(hotspot?.lat, hotspot?.lng);
   
   if (!hotspot) return null;
@@ -181,7 +200,16 @@ function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose, onDisp
         
         <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button className="btn primary" style={{ justifyContent: 'center' }} onClick={() => onDispatch({ id: hotspot.id, name: hotspot.name, lat: hotspot.lat, lng: hotspot.lng })}><Siren size={13} />Dispatch team</button>
-          <button className="btn" style={{ justifyContent: 'center' }}><FileText size={13} />Full report</button>
+          <button
+            className="btn"
+            style={{ justifyContent: 'center' }}
+            onClick={() => {
+              if (onNavigate) onNavigate('reports');
+              else onOpenReportModal?.();
+            }}
+          >
+            <FileText size={13} />Full report
+          </button>
         </div>
       </div>
     </div>
@@ -197,17 +225,26 @@ interface DashboardProps {
   data: DashboardData;
   /** Which portion to render — 'main' for center area, 'side' for sidebar. */
   position: 'main' | 'side';
-  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors') => void;
+  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  onOpenReportModal?: () => void;
 }
 
-export function Dashboard({ data: d, position, onNavigate }: DashboardProps) {
-  if (position === 'main') return <MainContent d={d} onNavigate={onNavigate} />;
+export function Dashboard({ data: d, position, onNavigate, onOpenReportModal }: DashboardProps) {
+  if (position === 'main') return <MainContent d={d} onNavigate={onNavigate} onOpenReportModal={onOpenReportModal} />;
   return <SideContent d={d} />;
 }
 
 /* ───── Main (KPI strip + map stage) ───── */
 
-function MainContent({ d, onNavigate }: { d: DashboardData; onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors') => void }) {
+function MainContent({
+  d,
+  onNavigate,
+  onOpenReportModal,
+}: {
+  d: DashboardData;
+  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  onOpenReportModal?: () => void;
+}) {
   const statusLabel = d.status === 'open' ? 'live' : d.status === 'connecting' ? 'connecting' : 'reconnecting';
   const statusDotClass = d.status === 'open' ? 'ok' : 'warn';
   const [kpiCollapsed, setKpiCollapsed] = useState(() => {
@@ -338,7 +375,15 @@ function MainContent({ d, onNavigate }: { d: DashboardData; onNavigate?: (tab: '
           <span className="item">24.7136°, 46.6753°</span>
         </div>
 
-        <HotspotDrawer hotspot={d.selectedHotspot} historySeries={d.drawerHistorySeries} pollutantStats={d.pollutantStats} onClose={() => d.setSelected(null)} onDispatch={setDispatchTarget} />
+        <HotspotDrawer
+          hotspot={d.selectedHotspot}
+          historySeries={d.drawerHistorySeries}
+          pollutantStats={d.pollutantStats}
+          onClose={() => d.setSelected(null)}
+          onDispatch={setDispatchTarget}
+          onNavigate={onNavigate}
+          onOpenReportModal={onOpenReportModal}
+        />
 
         <DispatchDialog
           isOpen={!!dispatchTarget}
@@ -358,14 +403,8 @@ function MainContent({ d, onNavigate }: { d: DashboardData; onNavigate?: (tab: '
 function SideContent({ d }: { d: DashboardData }) {
   return (
     <>
-      <div className="banner">
-        <div className="banner-icon"><AlertTriangle size={14} /></div>
-        <div className="banner-body">
-          <div className="banner-title">{d.t('banner.over')} · +{d.thresholdExceededBy} µg/m³</div>
-          <div className="banner-sub">Citywide advisory active</div>
-        </div>
-        <button className="banner-cta" onClick={() => d.setCurrentTab('dispatch')}>{d.t('banner.dispatch')}</button>
-      </div>
+      <EventBanner data={d} />
+      <AlertSettingsPanel data={d} />
 
 
       {/* City Trend */}
@@ -398,82 +437,12 @@ function SideContent({ d }: { d: DashboardData }) {
         </div>
       </div>
 
-      {/* Hotspots */}
-      <div className="side-group">
-        <div className="side-head">
-          <div><div className="eyebrow">{d.t('panel.hotspots.eyebrow')}</div><div className="side-title">{d.t('panel.hotspots')} <span className="cnt">{String(d.hotspots.length).padStart(2, '0')}</span></div></div>
-          <button className="btn" style={{ padding: '5px 10px', fontSize: 11 }}><MapPin size={11} /> {d.t('btn.onMap')}</button>
-        </div>
-        <ul>
-          {d.hotspots.map((hotspot, index) => (
-            <li key={hotspot.id} className={`hotspot ${d.selectedHotspot?.id === hotspot.id ? 'selected' : ''}`} onClick={() => d.handlePickHotspot(hotspot)}>
-              <div className="hotspot-rank">#{String(index + 1).padStart(2, '0')}</div>
-              <div><div className="hotspot-name">{hotspot.name}</div><div className="hotspot-coord">{hotspot.coord} · dom. AQI</div></div>
-              <div className={`hotspot-val ${hotspot.band}`}><div className="n tnum">{Math.round(hotspot.aqi)}</div><div className="u">AQI · {hotspot.trend > 0 ? '+' : ''}{hotspot.trend}%</div></div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Pollutants */}
-      <div className="side-group">
-        <div className="side-head"><div><div className="eyebrow">{d.t('panel.pollutants.eyebrow')}</div><div className="side-title">{d.t('panel.pollutants')}</div></div><button className="btn" style={{ padding: '5px 10px', fontSize: 11 }}><Filter size={11} /> {d.t('btn.all')}</button></div>
-        <div className="pollutant-grid">
-          {d.pollutantStats.map(stat => {
-            const pctColor = stat.pct > 70 ? 'var(--aqi-unh)' : stat.pct > 50 ? 'var(--aqi-usg)' : stat.pct > 30 ? 'var(--aqi-mod)' : 'var(--aqi-good)';
-            return (
-              <div key={stat.key} className={`pcard ${d.pollutant === stat.key ? 'active' : ''}`} onClick={() => d.setPollutant(stat.key)}>
-                <div className="pcard-head"><div className="pcard-name">{stat.name} <span className="sub">{stat.unit}</span></div><span className={`pcard-delta ${stat.delta >= 0 ? 'up' : 'down'}`}>{stat.delta >= 0 ? '+' : ''}{stat.delta}</span></div>
-                <div className="pcard-val tnum">{stat.value.toFixed(stat.value < 10 ? 1 : 0)}<span className="pcard-unit">{stat.unit}</span></div>
-                <div className="pcard-bar"><div className="fill" style={{ width: `${stat.pct}%`, background: pctColor }} /></div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Weather */}
-      <div className="side-group">
-        <div className="side-head"><div><div className="eyebrow">{d.t('panel.weather.eyebrow')}</div><div className="side-title">{d.t('panel.weather')}</div></div><span className="mono tnum" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>Riyadh · {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span></div>
-        <div className="weather-row">
-          <div className="weather-cell"><div className="l">{d.t('weather.temp')}</div><div className="v tnum">{d.tempNow}<span className="u"> C</span></div></div>
-          <div className="weather-cell"><div className="l">{d.t('weather.humidity')}</div><div className="v tnum">{d.humidityNow}<span className="u"> %</span></div></div>
-          <div className="weather-cell"><div className="l">{d.t('weather.pressure')}</div><div className="v tnum">1013<span className="u"> hPa</span></div></div>
-        </div>
-        <div className="wind-compass">
-          <div className="compass"><div className="compass-arrow" style={{ transform: `rotate(${d.drift.headingDeg}deg)`, transition: 'transform 0.6s ease' }}><MapPin size={20} /></div></div>
-          <div className="wind-meta"><div className="hd">{d.t('weather.windHeader')}</div><div className="dir">{d.drift.speedKmh} <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>km/h · {d.drift.cardinal}</span></div><div className="sub">{d.drift.description}</div></div>
-        </div>
-      </div>
-
-      {/* Forecast */}
-      <div className="side-group">
-        <div className="side-head"><div><div className="eyebrow">{d.t('panel.forecast.eyebrow')}</div><div className="side-title">{d.t('panel.forecast')}</div></div><span className="band" title="Linear trend + mean reversion"><Sparkles size={10} /> trend v1</span></div>
-        <div className="forecast">{d.forecast.map(point => (<div key={point.hr} className="f-cell"><div className="f-hr">{point.hr}</div><div className="f-val tnum">{point.val}</div><div className="f-dot" style={{ background: `var(--aqi-${point.band})` }} /></div>))}</div>
-      </div>
-
-      {/* Sources */}
-      <div className="side-group">
-        <div className="side-head"><div><div className="eyebrow">{d.t('panel.sources.eyebrow')}</div><div className="side-title">{d.t('panel.sources')}</div></div></div>
-        <div className="src-bar">{d.sources.map(source => (<div key={source.key} style={{ flex: source.pct, background: source.color }}>{source.pct}%</div>))}</div>
-        <div className="src-legend">{d.sources.map(source => (<div key={source.key} className="src-row"><span className="sw" style={{ background: source.color }} /><span>{source.name}</span><span className="pct tnum">{source.pct}%</span></div>))}</div>
-      </div>
-
-      {/* Alert Feed */}
-      <div className="side-group">
-        <div className="side-head"><div><div className="eyebrow">{d.t('panel.feed.eyebrow')}</div><div className="side-title">{d.t('panel.feed')}</div></div><button className="btn" style={{ padding: '5px 10px', fontSize: 11 }}>{d.t('btn.all')}</button></div>
-        <ul>
-          {d.feed.map(item => (
-            <li key={item.id} className="alert">
-              <div className={`alert-icon ${item.severity}`}>
-                {item.severity === 'crit' || item.severity === 'warn' ? <AlertTriangle size={12} /> : item.severity === 'ok' ? <Activity size={12} /> : <Bell size={12} />}
-              </div>
-              <div className="alert-body"><div className="t"><b>{item.title}</b></div><div className="m">{item.meta}</div></div>
-              <div className="alert-time">{item.time}</div>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <HotspotsPanel data={d} />
+      <PollutantsPanel data={d} />
+      <WeatherPanel data={d} />
+      <ForecastPanel data={d} />
+      <SourcesPanel data={d} />
+      <FeedPanel data={d} />
     </>
   );
 }

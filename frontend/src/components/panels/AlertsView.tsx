@@ -17,21 +17,21 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--brand-10)] text-[var(--brand)] text-xs font-semibold tracking-wide uppercase mb-4">
-                <Zap size={14} /> Live Monitor
+                <Zap size={14} /> {d.t('alerts.liveMonitor')}
               </div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2 text-[var(--ink-1)]">Incident Response</h1>
-              <p className="text-[var(--ink-2)] text-base max-w-xl">Manage global threshold rules and dispatch autonomous units to investigate anomalies across the sensor network.</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2 text-[var(--ink-1)]">{d.t('alerts.title')}</h1>
+              <p className="text-[var(--ink-2)] text-base max-w-xl">{d.t('alerts.subtitle')}</p>
             </div>
 
             <div className="flex gap-4">
               <div className="flex flex-col items-end">
                 <span className="text-4xl font-light tracking-tighter text-[var(--ink-1)]">{d.feed.length}</span>
-                <span className="text-xs font-medium text-[var(--ink-3)] uppercase tracking-widest">Active Incidents</span>
+                <span className="text-xs font-medium text-[var(--ink-3)] uppercase tracking-widest">{d.t('alerts.activeIncidents')}</span>
               </div>
               <div className="w-px bg-[var(--line)] self-stretch" />
               <div className="flex flex-col items-end">
                 <span className="text-4xl font-light tracking-tighter text-[var(--ink-1)]">{d.feed.filter(a => a.severity === 'crit').length}</span>
-                <span className="text-xs font-medium text-[var(--danger)] uppercase tracking-widest">Critical</span>
+                <span className="text-xs font-medium text-[var(--danger)] uppercase tracking-widest">{d.t('alerts.critical')}</span>
               </div>
             </div>
           </div>
@@ -45,7 +45,7 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
               <div className="w-8 h-8 rounded-full bg-[var(--danger-10)] flex items-center justify-center text-[var(--danger)] shadow-[0_0_15px_var(--danger-20)]">
                 <Siren size={14} className="animate-pulse" />
               </div>
-              <h2 className="font-semibold text-lg">Active Alerts</h2>
+              <h2 className="font-semibold text-lg">{d.t('alerts.active')}</h2>
             </div>
 
             <ul className="flex flex-col gap-3">
@@ -54,8 +54,8 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                   <div className="w-12 h-12 mx-auto rounded-full bg-[var(--ok-10)] text-[var(--ok)] flex items-center justify-center mb-4">
                     <Activity size={20} />
                   </div>
-                  <h3 className="text-[var(--ink-1)] font-medium mb-1">Network Optimal</h3>
-                  <p className="text-[var(--ink-3)] text-sm">No active incidents reported across the grid.</p>
+                  <h3 className="text-[var(--ink-1)] font-medium mb-1">{d.t('alerts.networkOptimal')}</h3>
+                  <p className="text-[var(--ink-3)] text-sm">{d.t('alerts.none')}</p>
                 </li>
               ) : (
                 d.feed.map((item, i) => (
@@ -78,7 +78,7 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                             item.severity === 'warn' ? 'bg-[var(--warn)] text-white' :
                               'bg-[var(--line)] text-[var(--ink-2)]'
                           }`}>
-                          {item.severity === 'crit' ? 'Critical' : item.severity === 'warn' ? 'Warning' : 'Info'}
+                          {item.severity === 'crit' ? d.t('alerts.critical') : item.severity === 'warn' ? d.t('alerts.warning') : d.t('alerts.info')}
                         </span>
                         <span className="text-xs text-[var(--ink-3)] font-mono">{item.time}</span>
                       </div>
@@ -94,7 +94,7 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                         className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[var(--bg-1)] hover:bg-[var(--brand)] text-[var(--ink-1)] hover:text-white border border-[var(--line)] hover:border-[var(--brand)] text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 group/btn"
                       >
                         <Crosshair size={16} className="group-hover/btn:rotate-90 transition-transform duration-500" />
-                        <span>Dispatch Unit</span>
+                        <span>{d.t('alerts.dispatchDrone')}</span>
                       </button>
                     </div>
                   </li>
@@ -110,16 +110,14 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                 <Settings size={20} />
               </div>
 
-              <h3 className="font-semibold text-lg mb-1">Global Threshold</h3>
-              <p className="text-sm text-[var(--ink-3)] mb-6 leading-relaxed">
-                Set the city-wide PM2.5 baseline. Levels exceeding this value will automatically trigger warnings and recommend drone dispatch.
-              </p>
+              <h3 className="font-semibold text-lg mb-1">{d.t('alerts.globalThreshold')}</h3>
+              <p className="text-sm text-[var(--ink-3)] mb-6 leading-relaxed">{d.t('alerts.thresholdHelp')}</p>
 
               {d.canManageAlertSettings ? (
                 <div className="flex flex-col gap-5">
                   <div className="relative">
                     <label htmlFor="pm25-threshold-input" className="block text-[11px] font-bold text-[var(--ink-2)] mb-2 uppercase tracking-widest">
-                      PM2.5 Trigger Level
+                      {d.t('alerts.triggerLevel')}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -141,29 +139,29 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                     disabled={d.alertConfigState === 'saving' || d.alertThresholdDraft === String(d.effectiveAlertThreshold)}
                     onClick={d.handleSaveAlertThreshold}
                   >
-                    {d.alertConfigState === 'saving' ? 'Applying...' : 'Apply Threshold'}
+                    {d.alertConfigState === 'saving' ? d.t('alerts.applying') : d.t('alerts.apply')}
                   </button>
 
                   {d.alertConfigState === 'saved' && (
                     <div className="text-sm text-[var(--ok)] bg-[var(--ok-10)] px-4 py-3 rounded-lg border border-[var(--ok-20)] flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                      <Activity size={16} /> Update live on grid.
+                      <Activity size={16} /> {d.t('alerts.updateLive')}
                     </div>
                   )}
                   {d.alertConfigState === 'error' && (
                     <div className="text-sm text-[var(--danger)] bg-[var(--danger-10)] px-4 py-3 rounded-lg border border-[var(--danger-20)] flex items-start gap-2 animate-in fade-in slide-in-from-top-2">
-                      <AlertTriangle size={16} className="mt-0.5 shrink-0" /> Failed to apply. Ensure value is between 1 and 500.
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {d.t('alerts.error')}
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="p-4 rounded-xl bg-[var(--bg-1)] border border-[var(--line)] text-sm text-[var(--ink-2)]">
-                  You have <span className="font-semibold text-[var(--ink-1)]">read-only</span> access. Administrator privileges required to change grid thresholds.
+                  {d.t('alerts.readOnly')}
                 </div>
               )}
 
               <div className="mt-8 pt-6 border-t border-[var(--line)]">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-[var(--ink-3)]">Currently Active</span>
+                  <span className="text-[var(--ink-3)]">{d.t('alerts.currentlyActive')}</span>
                   <span className="font-mono font-medium">{d.effectiveAlertThreshold} µg/m³</span>
                 </div>
               </div>

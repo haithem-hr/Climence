@@ -10,6 +10,7 @@ import type { ForecastPoint } from '@climence/shared';
 
 import type { DashboardData } from '../../hooks/useDashboardData';
 import { openPrintablePdf } from '../../lib/reports';
+import { translate } from '../../lib/i18n';
 
 interface AnalyticsViewProps {
   authToken: string | null;
@@ -63,6 +64,7 @@ interface AnalyticsPoint {
 const LIVE_REFRESH_MS = 30_000;
 
 export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
+  const t = (key: Parameters<typeof translate>[0]) => translate(key, d.locale);
   const [range, setRange]               = useState<TimeRange>('24h');
   const [showForecast, setShowForecast] = useState(false);
   const [forecastHorizon, setForecastHorizon] = useState<number>(24);
@@ -208,7 +210,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
       <div className="analytics-header">
         <div>
           <h2 className="analytics-title">
-            Command Center Analytics
+            {t('analytics.title')}
           </h2>
           <div className="analytics-controls">
             <div className="analytics-range-group">
@@ -230,7 +232,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
                 onClick={() => setShowForecast(!showForecast)}
                 className={`analytics-forecast-btn ${showForecast ? 'active' : ''}`}
               >
-                <Maximize2 size={14} /> {showForecast ? 'Hide Forecast' : 'Expand Forecast'}
+                <Maximize2 size={14} /> {showForecast ? t('analytics.forecast.hide') : t('analytics.forecast.show')}
               </button>
 
               {showForecast && (
@@ -254,7 +256,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
           onClick={() => openPrintablePdf(d.reportPayload)}
           className="analytics-export-btn"
         >
-          <Download size={16} /> Export Intelligence
+          <Download size={16} /> {t('analytics.export')}
         </button>
       </div>
 
@@ -273,7 +275,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className="analytics-last-refresh mono" title="Last data refresh">
-              ↺ {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              ↺ {t('analytics.lastRefresh')} {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
             <button
               className="icon-btn"

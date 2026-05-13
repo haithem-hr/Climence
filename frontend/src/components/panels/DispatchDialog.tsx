@@ -30,12 +30,6 @@ export function DispatchDialog({ isOpen, onClose, onConfirm, targetId, targetNam
     onClose();
   };
 
-  const priorityColors: Record<MissionPriority, string> = {
-    low: 'var(--ok)',
-    high: 'var(--warn)',
-    crit: 'var(--danger)',
-  };
-
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[rgba(0,0,0,0.6)] backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-[var(--bg-0)] border border-[var(--line)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 ease-out">

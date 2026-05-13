@@ -453,7 +453,14 @@ const insertMissionStmt = db.prepare(`
   )
 `);
 
-export const insertMission = (m: any) => insertMissionStmt.run(m);
+export const insertMission = (m: any) => {
+  insertMissionStmt.run({
+    ...m,
+    lat: m.targetCoord?.lat ?? 0,
+    lng: m.targetCoord?.lng ?? 0,
+  });
+  // Note: broadcastSnapshot() is usually called by the route after this.
+};
 
 const updateMissionStatusStmt = db.prepare(`
   UPDATE Missions 

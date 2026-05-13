@@ -36,8 +36,21 @@ router.post('/', requireAuth, requireRole(...canCreateMissions), (req, res) => {
 // PATCH /api/missions/:id
 router.patch('/:id', requireAuth, requireRole(...canCreateMissions), (req, res) => {
   try {
-    const { id } = req.params;
-    const { status, report } = req.body;
+    const rawId = (req.params as any)?.id as unknown;
+    const rawStatus = (req.body as Record<string, unknown> | null | undefined)?.status;
+    const rawReport = (req.body as Record<string, unknown> | null | undefined)?.report;
+
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+    const status = typeof rawStatus === 'string' ? rawStatus : Array.isArray(rawStatus) ? rawStatus[0] : undefined;
+    const report = typeof rawReport === 'string' ? rawReport : Array.isArray(rawReport) ? rawReport[0] : undefined;
+
+    if (typeof id !== 'string' || !id) {
+      return sendBadRequest(res, 'Missing mission id');
+    }
+    if (typeof status !== 'string' || !status) {
+      return sendBadRequest(res, 'Missing mission status');
+    }
+
     updateMissionStatus(id, status, report);
     broadcastSnapshot();
     res.status(200).json({ status: 'success' });

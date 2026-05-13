@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
+import { Languages } from 'lucide-react';
 import type { AuthUser } from '@climence/shared';
 import { ApiError, login } from '../api/client';
 import { saveAuthSession } from '../lib/auth-session';
+import { tFormat, translate, type DictKey, type Locale } from '../lib/i18n';
 import climenceLogo from '../assets/climence-logo.png';
 
 interface AuthSession {
@@ -11,17 +13,20 @@ interface AuthSession {
 
 interface AuthScreenProps {
   onLogin: (session: AuthSession) => void;
+  locale: Locale;
+  onToggleRtl: () => void;
 }
 
-export function AuthScreen({ onLogin }: AuthScreenProps) {
+export function AuthScreen({ onLogin, locale, onToggleRtl }: AuthScreenProps) {
   const [email, setEmail] = useState('analyst@mewa.gov.sa');
   const [password, setPassword] = useState('Analyst123!');
   const [state, setState] = useState<'idle' | 'submitting' | 'error'>('idle');
   const [error, setError] = useState('');
+  const t = useCallback((key: DictKey) => translate(key, locale), [locale]);
 
   const handleLogin = useCallback(() => {
     if (!email.trim() || !password.trim()) {
-      setError('Email and password are required.');
+      setError(t('auth.required'));
       setState('error');
       return;
     }
@@ -36,19 +41,22 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       .catch((err: unknown) => {
         if (err instanceof ApiError) {
           if (err.status === 429) {
-            const waitHint = err.retryAfterSec ? ` (${Math.ceil(err.retryAfterSec / 60)} min)` : '';
-            setError(`Too many failed attempts. Try again later${waitHint}.`);
+            if (err.retryAfterSec) {
+              setError(tFormat('auth.rateLimitedWait', locale, { minutes: Math.ceil(err.retryAfterSec / 60) }));
+            } else {
+              setError(t('auth.rateLimited'));
+            }
           } else if (err.status === 401) {
-            setError('Incorrect email or password.');
+            setError(t('auth.invalid'));
           } else {
-            setError(`Login failed: ${err.message}`);
+            setError(tFormat('auth.failed', locale, { message: err.message }));
           }
         } else {
-          setError('Cannot reach backend. Make sure API is running and port matches shared constants.');
+          setError(t('auth.offline'));
         }
         setState('error');
       });
-  }, [email, password, onLogin]);
+  }, [email, password, onLogin, locale, t]);
 
   return (
     <div className="auth-screen">
@@ -57,16 +65,17 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           <img src={climenceLogo} alt="Climence logo" className="auth-logo" />
           <div>
             <div className="auth-title">Climence</div>
-            <div className="auth-sub">Secure Access · MEWA</div>
+            <div className="auth-sub">{t('auth.secureAccess')}</div>
           </div>
+          <button className="icon-btn" onClick={onToggleRtl} aria-label={t('app.toggleDirection')} title={t('app.toggleDirection')}>
+            <Languages size={14} />
+          </button>
         </div>
 
-        <h1>Sign in to dashboard</h1>
-        <p className="auth-copy">
-          Use your ministry credentials to access real-time monitoring, analytics, and reporting.
-        </p>
+        <h1>{t('auth.title')}</h1>
+        <p className="auth-copy">{t('auth.subtitle')}</p>
 
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t('auth.email')}</label>
         <input
           id="email"
           type="email"
@@ -75,10 +84,10 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
             setEmail(event.target.value);
             if (state === 'error') setState('idle');
           }}
-          placeholder="analyst@mewa.gov.sa"
+          placeholder={t('auth.email')}
         />
 
-        <label htmlFor="password">Password</label>
+        <label htmlFor="password">{t('auth.password')}</label>
         <input
           id="password"
           type="password"
@@ -90,17 +99,17 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           onKeyDown={event => {
             if (event.key === 'Enter') handleLogin();
           }}
-          placeholder="••••••••"
+          placeholder={t('auth.password')}
         />
 
-        {state === 'error' && <div className="auth-error">{error}</div>}
+        {state === 'error' && <div className="auth-error" role="alert">{error}</div>}
 
         <button className="btn primary auth-submit" onClick={handleLogin} disabled={state === 'submitting'}>
-          {state === 'submitting' ? 'Signing in...' : 'Sign in'}
+          {state === 'submitting' ? t('auth.submitting') : t('auth.submit')}
         </button>
 
         <div className="auth-hint">
-          Demo accounts: <code>admin@mewa.gov.sa</code>, <code>analyst@mewa.gov.sa</code>, <code>viewer@mewa.gov.sa</code>
+          {t('auth.demoAccounts')}: <code>admin@mewa.gov.sa</code>, <code>analyst@mewa.gov.sa</code>, <code>viewer@mewa.gov.sa</code>
         </div>
       </div>
     </div>

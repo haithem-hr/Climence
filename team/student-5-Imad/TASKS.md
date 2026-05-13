@@ -38,6 +38,8 @@ You own **the features around the map**: the side-rail panels (weather / forecas
 
 ## Prioritized tasks
 
+> ✅ **DONE — 2026-05-13.** Shipped on branch `imad/reports-xlsx-export`. Files: [frontend/src/lib/reports.ts](../../frontend/src/lib/reports.ts) (added pure workbook builders plus browser `.xlsx` export for `Sensors`, `Alerts`, and `City Trend`), [frontend/src/components/ReportModal.tsx](../../frontend/src/components/ReportModal.tsx) (added the Excel workbook export card), [frontend/test/reports.test.ts](../../frontend/test/reports.test.ts) (2 workbook-focused unit tests), [frontend/package.json](../../frontend/package.json) (fixed the frontend test glob so dashboard tests run). 10/10 dashboard tests green; dashboard typecheck and lint green. Traceability: FR-16 evidence updated to cite the true `.xlsx` path while UC4 stays implemented. **Heads-up for the next maintainer:** the schedule format union is still `pdf/csv/json`; wire `xlsx` into scheduling when P2 lands. Original task description preserved below for reference.
+
 ### P0 — Real Excel (.xlsx) export (FR-16)
 
 **Files:** [frontend/src/lib/reports.ts](../../frontend/src/lib/reports.ts), [frontend/src/components/ReportModal.tsx](../../frontend/src/components/ReportModal.tsx)
@@ -74,6 +76,8 @@ You own **the features around the map**: the side-rail panels (weather / forecas
 **Dependencies:** none.
 
 ---
+
+> ✅ **DONE — 2026-05-13.** Shipped on branch `imad/report-schedule-runner`. Files: [frontend/src/lib/schedule-runner.ts](../../frontend/src/lib/schedule-runner.ts) (due-schedule detection, advancement, countdown helpers, exporter dispatch), [frontend/src/components/ReportModal.tsx](../../frontend/src/components/ReportModal.tsx) (added `xlsx` scheduling and visible next-run countdown), [frontend/src/lib/reports.ts](../../frontend/src/lib/reports.ts) (extended `ScheduledReport['format']` to include `xlsx`), [frontend/src/App.tsx](../../frontend/src/App.tsx) (tab-local 5-minute runner mounted at the app level), [frontend/test/schedule-runner.test.ts](../../frontend/test/schedule-runner.test.ts) (2 scheduler unit tests). 12/12 dashboard tests green; dashboard typecheck and lint green. Traceability: FR-17 and UC-A5 evidence updated to cite the active tab-local runner while status remains Partial pending backend/server-side execution. **Heads-up for the next maintainer:** scheduled PDF runs still open the printable tab in the browser, so server-side execution remains the next backend-integrated phase. Original task description preserved below for reference.
 
 ### P2 — Schedule UI → server-side execution hook (FR-17)
 
@@ -130,6 +134,8 @@ You own **the features around the map**: the side-rail panels (weather / forecas
 **Dependencies:** Oussama P3 (shell skeleton).
 
 ---
+
+> ✅ **DONE — 2026-05-13.** Shipped on branch `imad/panels-side-rail-extraction`. Files: [frontend/src/components/Dashboard.tsx](../../frontend/src/components/Dashboard.tsx) (overview side rail now composes extracted panel files), [frontend/src/components/panels/EventBanner.tsx](../../frontend/src/components/panels/EventBanner.tsx), [frontend/src/components/panels/AlertSettingsPanel.tsx](../../frontend/src/components/panels/AlertSettingsPanel.tsx), [frontend/src/components/panels/HotspotsPanel.tsx](../../frontend/src/components/panels/HotspotsPanel.tsx), [frontend/src/components/panels/PollutantsPanel.tsx](../../frontend/src/components/panels/PollutantsPanel.tsx), [frontend/src/components/panels/WeatherPanel.tsx](../../frontend/src/components/panels/WeatherPanel.tsx), [frontend/src/components/panels/ForecastPanel.tsx](../../frontend/src/components/panels/ForecastPanel.tsx), [frontend/src/components/panels/SourcesPanel.tsx](../../frontend/src/components/panels/SourcesPanel.tsx), [frontend/src/components/panels/FeedPanel.tsx](../../frontend/src/components/panels/FeedPanel.tsx), [frontend/src/index.css](../../frontend/src/index.css) (new side-panel field/empty-state styles and row entry animation). 10/10 dashboard tests green; dashboard typecheck and lint green. Traceability: NFR-09 evidence expanded to cite the extracted panel architecture and alert-settings surface. **Heads-up for the next maintainer:** P1/P3 still need to finish translating and hardening the newly extracted panels, but the file ownership boundaries are now stable. Original task description preserved below for reference.
 
 ### P5 — Panel extraction + polish
 

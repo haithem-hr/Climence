@@ -23,7 +23,7 @@ import { fetchAlertConfig, fetchHistory, updateAlertConfig, createMission, updat
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from '../lib/analytics';
-import { translate, type DictKey, type Locale } from '../lib/i18n';
+import { tFormat, translate, type DictKey, type Locale } from '../lib/i18n';
 import {
   bandForMetricValue,
   formatMetricValue,
@@ -335,7 +335,7 @@ export function useDashboardData(
   const [mapBounds, setMapBounds] = useState<RiyadhMapBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch'>(() => 
+  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports'>(() => 
     (localStorage.getItem(STORAGE_KEYS.TAB) as any) || 'overview'
   );
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
@@ -373,22 +373,21 @@ export function useDashboardData(
 
   // Sync missions from snapshot
   useEffect(() => {
-    if ((snapshot as any).missions) {
-      const records = (snapshot as any).missions as any[];
-      const converted: Mission[] = records.map(r => ({
+    if (snapshot.missions) {
+      const converted: Mission[] = snapshot.missions.map(r => ({
         id: r.id,
         targetId: r.target_id,
         targetName: r.target_name,
         targetCoord: { lat: r.lat, lng: r.lng },
-        resourceType: r.resource_type,
-        priority: r.priority,
-        status: r.status,
+        resourceType: r.resource_type as any,
+        priority: r.priority as any,
+        status: r.status as any,
         report: r.report,
         startTime: r.start_time,
       }));
       setActiveMissions(converted);
     }
-  }, [snapshot]);
+  }, [snapshot.missions]);
 
   const validDrones = useMemo(
     () => snapshot.drones.filter(isValidTelemetryRecord),
@@ -534,10 +533,10 @@ export function useDashboardData(
     { key: 'pm25', name: 'PM2.5', unit: 'ug/m3', value: pm25Now, delta: Math.round((pm25Series[pm25Series.length - 1] ?? 0) - (pm25Series[pm25Series.length - 2] ?? 0)), pct: clamp((pm25Now / 150) * 100, 4, 100) },
     { key: 'co2', name: 'CO2', unit: 'ppm', value: co2Now, delta: Math.round(((co2Now - 520) / 520) * 20), pct: clamp((co2Now / 950) * 100, 4, 100) },
     { key: 'no2', name: 'NO2', unit: 'ppb', value: no2Now, delta: Math.round(((no2Now - 35) / 35) * 12), pct: clamp((no2Now / 90) * 100, 4, 100) },
-    { key: 'temperature', name: 'Temp', unit: 'degC', value: tempNow, delta: Math.round(((tempNow - 30) / 30) * 8), pct: clamp((tempNow / 45) * 100, 4, 100) },
-    { key: 'humidity', name: 'Humidity', unit: '%', value: humidityNow, delta: Math.round(((humidityNow - 35) / 35) * 8), pct: clamp((humidityNow / 100) * 100, 4, 100) },
-    { key: 'battery', name: 'Battery', unit: '%', value: batteryNow, delta: Math.round(((batteryNow - 60) / 60) * 6), pct: clamp((batteryNow / 100) * 100, 4, 100) },
-  ], [batteryNow, co2Now, humidityNow, no2Now, pm25Now, pm25Series, tempNow]);
+    { key: 'temperature', name: t('sensors.temp'), unit: 'degC', value: tempNow, delta: Math.round(((tempNow - 30) / 30) * 8), pct: clamp((tempNow / 45) * 100, 4, 100) },
+    { key: 'humidity', name: t('weather.humidity'), unit: '%', value: humidityNow, delta: Math.round(((humidityNow - 35) / 35) * 8), pct: clamp((humidityNow / 100) * 100, 4, 100) },
+    { key: 'battery', name: t('sensors.battery'), unit: '%', value: batteryNow, delta: Math.round(((batteryNow - 60) / 60) * 6), pct: clamp((batteryNow / 100) * 100, 4, 100) },
+  ], [batteryNow, co2Now, humidityNow, no2Now, pm25Now, pm25Series, t, tempNow]);
 
   const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, co2: co2Now, no2: no2Now, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, humidityNow, no2Now, pm25Now, tempNow]);
 
@@ -549,27 +548,27 @@ export function useDashboardData(
         let severity: AlertSeverity = 'info';
         if (alert.pm25 >= effectiveAlertThreshold + 45) severity = 'crit';
         else if (alert.pm25 >= effectiveAlertThreshold) severity = 'warn';
-        return { 
-          id: `${alert.uuid}-${alert.id}`, 
-          severity, 
-          title: `PM2.5 threshold exceeded · ${Math.round(alert.pm25)} ug/m3`, 
-          meta: `${alert.uuid.slice(0, 8)} · ${alert.state}`, 
+        return {
+          id: `${alert.uuid}-${alert.id}`,
+          severity,
+          title: tFormat('feed.pm25Exceeded', locale, { value: Math.round(alert.pm25) }),
+          meta: `${alert.uuid.slice(0, 8)} · ${alert.state}`,
           time: formatAgo(alert.server_timestamp),
           lat: alert.lat,
           lng: alert.lng
         };
       });
     }
-    return hotspots.slice(0, 5).map((h, i) => ({ 
-      id: `fallback-${h.id}`, 
-      severity: (i === 0 ? 'crit' : i < 3 ? 'warn' : 'ok') as AlertSeverity, 
-      title: `${h.name} monitoring advisory`, 
-      meta: `${h.coord} · ${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}`, 
+    return hotspots.slice(0, 5).map((h, i) => ({
+      id: `fallback-${h.id}`,
+      severity: (i === 0 ? 'crit' : i < 3 ? 'warn' : 'ok') as AlertSeverity,
+      title: tFormat('feed.monitoringAdvisory', locale, { name: h.name }),
+      meta: tFormat('feed.metaDominant', locale, { coord: h.coord, label: h.metricLabel, value: h.metricDisplayValue, unit: h.metricUnit }),
       time: `${(i + 1) * 5}m`,
       lat: h.lat,
       lng: h.lng
     }));
-  }, [effectiveAlertThreshold, snapshot.alerts, hotspots]);
+  }, [effectiveAlertThreshold, hotspots, locale, snapshot.alerts]);
 
   const liveAge = formatAgo(snapshot.emittedAt);
   const activePollutant = pollutantStats.find(s => s.key === pollutant)?.name ?? 'PM2.5';
@@ -663,6 +662,7 @@ export function useDashboardData(
 
   return {
     // layout
+    locale,
     currentTab, setCurrentTab,
     mode, setMode, pollutant, setPollutant, range, setRange,
     // sensors

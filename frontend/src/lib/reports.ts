@@ -1,4 +1,5 @@
 import type { TelemetrySnapshot } from '@climence/shared';
+import writeExcelFile, { type CellObject, type Sheet } from 'write-excel-file/browser';
 
 export interface ReportPayload {
   snapshot: TelemetrySnapshot;
@@ -12,6 +13,17 @@ export interface ReportPayload {
   forecast: Array<{ hr: string; val: number }>;
   trendLabel: string;
   generatedBy: string;
+}
+
+type WorkbookCell = CellObject | string | number | boolean | Date | null;
+
+interface WorkbookColumn {
+  width: number;
+}
+
+export interface WorkbookSheet extends Sheet<Blob> {
+  columns: WorkbookColumn[];
+  data: WorkbookCell[][];
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -35,6 +47,182 @@ function csvEscape(value: string | number) {
   const str = String(value);
   if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
   return str;
+}
+
+function headerCell(value: string): WorkbookCell {
+  return { value, type: String, fontWeight: 'bold' };
+}
+
+function stringCell(value: string): WorkbookCell {
+  return { value, type: String };
+}
+
+function numberCell(value: number): WorkbookCell {
+  return { value, type: Number };
+}
+
+function dateCell(value: string): WorkbookCell {
+  return { value: new Date(value), type: Date };
+}
+
+function buildSensorsSheet(payload: ReportPayload): WorkbookSheet {
+  const rows: WorkbookCell[][] = [
+    [
+      headerCell('UUID'),
+      headerCell('State'),
+      headerCell('Battery'),
+      headerCell('Latitude'),
+      headerCell('Longitude'),
+      headerCell('PM2.5'),
+      headerCell('CO2'),
+      headerCell('NO2'),
+      headerCell('Temperature'),
+      headerCell('Humidity'),
+      headerCell('RSSI'),
+      headerCell('Timestamp'),
+    ],
+  ];
+
+  if (payload.snapshot.drones.length === 0) {
+    rows.push([
+      stringCell('No sensor rows in this snapshot.'),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+    ]);
+  } else {
+    for (const drone of payload.snapshot.drones) {
+      rows.push([
+        stringCell(drone.uuid),
+        stringCell(drone.state),
+        numberCell(drone.batteryLevel),
+        numberCell(drone.lat),
+        numberCell(drone.lng),
+        numberCell(drone.pm25),
+        numberCell(drone.co2),
+        numberCell(drone.no2),
+        numberCell(drone.temperature),
+        numberCell(drone.humidity),
+        numberCell(drone.rssi),
+        dateCell(drone.server_timestamp),
+      ]);
+    }
+  }
+
+  return {
+    sheet: 'Sensors',
+    columns: [
+      { width: 20 },
+      { width: 18 },
+      { width: 12 },
+      { width: 14 },
+      { width: 14 },
+      { width: 12 },
+      { width: 12 },
+      { width: 12 },
+      { width: 14 },
+      { width: 12 },
+      { width: 10 },
+      { width: 24 },
+    ],
+    data: rows,
+  };
+}
+
+function buildAlertsSheet(payload: ReportPayload): WorkbookSheet {
+  const rows: WorkbookCell[][] = [
+    [
+      headerCell('UUID'),
+      headerCell('PM2.5'),
+      headerCell('Latitude'),
+      headerCell('Longitude'),
+      headerCell('Timestamp'),
+    ],
+  ];
+
+  if (payload.snapshot.alerts.length === 0) {
+    rows.push([
+      stringCell('No active alerts in this snapshot.'),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+      stringCell(''),
+    ]);
+  } else {
+    for (const alert of payload.snapshot.alerts) {
+      rows.push([
+        stringCell(alert.uuid),
+        numberCell(alert.pm25),
+        numberCell(alert.lat),
+        numberCell(alert.lng),
+        dateCell(alert.server_timestamp),
+      ]);
+    }
+  }
+
+  return {
+    sheet: 'Alerts',
+    columns: [
+      { width: 20 },
+      { width: 12 },
+      { width: 14 },
+      { width: 14 },
+      { width: 24 },
+    ],
+    data: rows,
+  };
+}
+
+function buildCityTrendSheet(payload: ReportPayload): WorkbookSheet {
+  const rows: WorkbookCell[][] = [
+    [
+      headerCell('Minute Label'),
+      headerCell('Average PM2.5'),
+      headerCell('Average CO2'),
+    ],
+  ];
+
+  if (payload.snapshot.cityTrend.length === 0) {
+    rows.push([
+      stringCell('No city trend points in this snapshot.'),
+      stringCell(''),
+      stringCell(''),
+    ]);
+  } else {
+    for (const point of payload.snapshot.cityTrend) {
+      rows.push([
+        stringCell(point.minute_label),
+        numberCell(point.avg_pm25),
+        numberCell(point.avg_co2),
+      ]);
+    }
+  }
+
+  return {
+    sheet: 'City Trend',
+    columns: [
+      { width: 18 },
+      { width: 16 },
+      { width: 16 },
+    ],
+    data: rows,
+  };
+}
+
+export function buildSnapshotWorkbook(payload: ReportPayload): WorkbookSheet[] {
+  return [
+    buildSensorsSheet(payload),
+    buildAlertsSheet(payload),
+    buildCityTrendSheet(payload),
+  ];
 }
 
 export function exportSnapshotCsv(payload: ReportPayload) {
@@ -109,6 +297,13 @@ export function exportSnapshotJson(payload: ReportPayload) {
     new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
     `climence-snapshot-${timestampSlug()}.json`,
   );
+}
+
+export function exportSnapshotXlsx(payload: ReportPayload): void {
+  void writeExcelFile(buildSnapshotWorkbook(payload), {
+    fontFamily: 'Inter',
+    fontSize: 11,
+  }).toFile(`climence-snapshot-${timestampSlug()}.xlsx`);
 }
 
 /**
@@ -337,7 +532,7 @@ export interface ScheduledReport {
   label: string;
   cadence: 'daily' | 'weekly' | 'monthly';
   nextRun: string;
-  format: 'pdf' | 'csv' | 'json';
+  format: 'pdf' | 'csv' | 'json' | 'xlsx';
 }
 
 const STORAGE_KEY = 'climence-scheduled-reports';

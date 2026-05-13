@@ -1,10 +1,10 @@
 export const AQI_BANDS = [
-  { max: 50, key: 'good', label: 'Good' },
-  { max: 100, key: 'mod', label: 'Moderate' },
-  { max: 150, key: 'usg', label: 'Sensitive Groups' },
-  { max: 200, key: 'unh', label: 'Unhealthy' },
-  { max: 300, key: 'vunh', label: 'Very Unhealthy' },
-  { max: 9999, key: 'haz', label: 'Hazardous' },
+  { max: 50, key: 'good', label: 'Good', color: 'var(--ok)' },
+  { max: 100, key: 'mod', label: 'Moderate', color: 'var(--warn)' },
+  { max: 150, key: 'usg', label: 'Sensitive Groups', color: 'var(--warn)' },
+  { max: 200, key: 'unh', label: 'Unhealthy', color: 'var(--danger)' },
+  { max: 300, key: 'vunh', label: 'Very Unhealthy', color: 'var(--danger)' },
+  { max: 9999, key: 'haz', label: 'Hazardous', color: 'var(--danger)' },
 ] as const;
 
 export type AqiBand = (typeof AQI_BANDS)[number];

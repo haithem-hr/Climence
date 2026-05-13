@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Battery, ChevronDown, ChevronUp, Cpu, MapPin, Radio, Send, X, Wind } from 'lucide-react';
+import { Activity, Battery, Cpu, MapPin, Radio, Send, X, Wind } from 'lucide-react';
 import type { DashboardData } from '../../hooks/useDashboardData';
 import { aqiBandFor, pm25ToAqi } from '@climence/shared';
 import { useOpenMeteoAirQuality } from '../../hooks/useOpenMeteoAirQuality';
@@ -21,28 +21,28 @@ export function SensorsView({ data: d }: { data: DashboardData }) {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(3,218,197,0.1)] text-[var(--cc-teal)] text-xs font-semibold tracking-wide uppercase mb-4">
-                <Radio size={12} className="animate-pulse" /> Grid Network
+                <Radio size={12} className="animate-pulse" /> {d.t('sensors.gridNetwork')}
               </div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2 text-[var(--ink-1)]">Sensor Array</h1>
-              <p className="text-[var(--ink-2)] text-base max-w-xl">Monitor the real-time telemetry and hardware status of all active environmental sensors across the city grid.</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2 text-[var(--ink-1)]">{d.t('sensors.title')}</h1>
+              <p className="text-[var(--ink-2)] text-base max-w-xl">{d.t('sensors.subtitle')}</p>
             </div>
 
             <div className="flex gap-4">
               <div className="flex flex-col items-end">
                 <span className="text-4xl font-light tracking-tighter text-[var(--ink-1)]">{d.sensors.length}</span>
-                <span className="text-xs font-medium text-[var(--ink-3)] uppercase tracking-widest">Total Units</span>
+                <span className="text-xs font-medium text-[var(--ink-3)] uppercase tracking-widest">{d.t('sensors.totalUnits')}</span>
               </div>
               <div className="w-px bg-[var(--line)] self-stretch mx-2" />
               <div className="flex flex-col items-end">
                 <span className="text-4xl font-light tracking-tighter text-[var(--brand)]">{d.onlineSensors}</span>
-                <span className="text-xs font-medium text-[var(--brand)] uppercase tracking-widest">Online</span>
+                <span className="text-xs font-medium text-[var(--brand)] uppercase tracking-widest">{d.t('sensors.online')}</span>
               </div>
               {d.sensors.length - d.onlineSensors > 0 && (
                 <>
                   <div className="w-px bg-[var(--line)] self-stretch mx-2" />
                   <div className="flex flex-col items-end">
                     <span className="text-4xl font-light tracking-tighter text-[var(--danger)]">{d.sensors.length - d.onlineSensors}</span>
-                    <span className="text-xs font-medium text-[var(--danger)] uppercase tracking-widest">Offline</span>
+                    <span className="text-xs font-medium text-[var(--danger)] uppercase tracking-widest">{d.t('sensors.offline')}</span>
                   </div>
                 </>
               )}
@@ -82,7 +82,6 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
   const isOffline = sensor.status === 'offline';
   const aqiBand = aqiBandFor(sensor.aqi || pm25ToAqi(sensor.pm25));
   // const [expanded, setExpanded] = useState(false); // REMOVED
-  const { data: omData } = useOpenMeteoAirQuality(sensor.lat, sensor.lng);
 
   return (
     <div
@@ -101,20 +100,20 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
             ? 'bg-transparent text-[var(--ink-3)] border-[var(--line)]'
             : 'bg-[var(--brand-10)] text-[var(--brand)] border-[var(--brand-20)]'
           }`}>
-          {isOffline ? 'Offline' : 'Online'}
+          {isOffline ? d.t('sensors.offline') : d.t('sensors.online')}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 flex-1">
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><Activity size={12} /> Current AQI</span>
+          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><Activity size={12} /> {d.t('sensors.currentAqi')}</span>
           <span className="text-lg font-bold tnum flex items-baseline gap-1 leading-none mt-1" style={{ color: isOffline ? 'var(--ink-3)' : aqiBand.color }}>
             {isOffline ? '--' : Math.round(sensor.aqi || pm25ToAqi(sensor.pm25))}
             {!isOffline && <span className="text-[10px] font-medium opacity-80 ml-1.5">· {aqiBand.label}</span>}
           </span>
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><Battery size={12} /> Battery</span>
+          <span className="text-[10px] uppercase tracking-wider text-[var(--ink-3)] flex items-center gap-1"><Battery size={12} /> {d.t('sensors.battery')}</span>
           <span className={`text-xl font-medium tnum flex items-baseline gap-1 ${!isOffline && sensor.battery < 20 ? 'text-[var(--danger)]' : 'text-[var(--ink-1)]'}`}>
             {isOffline ? '--' : Math.round(sensor.battery)}
             <span className="text-xs text-[var(--ink-3)]">%</span>
@@ -128,7 +127,7 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
             onClick={() => onShowDetail(sensor)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-1)] hover:bg-[var(--bg-2)] text-[var(--ink-2)] text-xs font-semibold transition-colors border border-[var(--line)]"
           >
-            <Activity size={14} /> See all details
+            <Activity size={14} /> {d.t('sensors.seeDetails')}
           </button>
           <div className="flex gap-2">
             <button
@@ -148,7 +147,7 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
               }}
               className="hover:opacity-90"
             >
-              <Send size={14} /> Dispatch
+              <Send size={14} /> {d.t('banner.dispatch')}
             </button>
             <button
               onClick={() => {
@@ -167,7 +166,7 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
               }}
               className="hover:opacity-90"
             >
-              See on Map
+              {d.t('btn.onMap')}
             </button>
           </div>
         </div>

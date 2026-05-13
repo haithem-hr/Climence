@@ -20,4 +20,23 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/**/*.tsx'],
+    ignores: [
+      'src/components/CommandCenterRedesign.tsx',
+      'src/components/panels/DroneDiagnostics.tsx',
+      'src/components/panels/HotspotsList.tsx',
+      'src/components/panels/LiveMapView.tsx',
+      'src/components/panels/ViewModeToggle.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: 'JSXText[value=/[A-Za-z]{3,}/]',
+          message: 'Visible JSX copy should come from the i18n dictionary.',
+        },
+      ],
+    },
+  },
 ])

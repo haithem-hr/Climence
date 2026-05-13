@@ -27,10 +27,10 @@ import type { ConnectionStatus } from '../hooks/useLiveTelemetry';
 import { translate, type DictKey, type Locale } from '../lib/i18n';
 import climenceLogo from '../assets/climence-logo.png';
 
-const STATUS_META: Record<ConnectionStatus, { label: string; dotClass: string }> = {
-  open: { label: 'Live', dotClass: 'ok' },
-  connecting: { label: 'Connecting', dotClass: 'warn' },
-  reconnecting: { label: 'Reconnecting', dotClass: 'warn' },
+const STATUS_META: Record<ConnectionStatus, { labelKey: DictKey; dotClass: string }> = {
+  open: { labelKey: 'app.live', dotClass: 'ok' },
+  connecting: { labelKey: 'app.connecting', dotClass: 'warn' },
+  reconnecting: { labelKey: 'app.reconnecting', dotClass: 'warn' },
 };
 export interface ShellProps {
   authUser: AuthUser;
@@ -50,8 +50,8 @@ export interface ShellProps {
   children: ReactNode;
   /** Everything rendered inside the side rail (<aside>). */
   sideContent: ReactNode;
-  currentTab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch';
-  onTabChange: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch') => void;
+  currentTab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports';
+  onTabChange: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
   /** Current data source mode. */
   dataSource: DataSource;
   /** Callback to toggle between live and demo. */
@@ -110,10 +110,25 @@ export function Shell({
 
   const roleLabel =
     authUser.role === UserRole.ADMINISTRATOR
-      ? 'Administrator'
+      ? t('nav.role.administrator')
       : authUser.role === UserRole.ANALYST
-        ? 'Analyst'
-        : 'Viewer';
+        ? t('nav.role.analyst')
+        : t('nav.role.viewer');
+
+  const currentCrumbLabel =
+    currentTab === 'livemap'
+      ? t('nav.livemap')
+      : currentTab === 'analytics'
+        ? t('nav.analytics')
+        : currentTab === 'alerts'
+          ? t('nav.alerts')
+          : currentTab === 'sensors'
+            ? t('nav.gridSensors')
+            : currentTab === 'dispatch'
+              ? t('nav.dispatch')
+              : currentTab === 'reports'
+                ? t('nav.reports')
+                : t('nav.overview');
 
   const handleNavToggle = () => {
     if (typeof window !== 'undefined' && window.innerWidth <= 1024) {
@@ -161,7 +176,7 @@ export function Shell({
           <button
             className="icon-btn nav-close-btn"
             onClick={() => setNavOpen(false)}
-            aria-label="Close navigation"
+            aria-label={t('app.closeNav')}
           >
             <X size={14} />
           </button>
@@ -173,6 +188,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'overview' ? 'active' : ''}`}
             onClick={() => onTabChange('overview')}
             title={t('nav.overview')}
+            aria-current={currentTab === 'overview' ? 'page' : undefined}
             data-tooltip={t('nav.overview')}
           >
             <Home size={16} />
@@ -182,6 +198,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'livemap' ? 'active' : ''}`}
             onClick={() => onTabChange('livemap')}
             title={t('nav.livemap')}
+            aria-current={currentTab === 'livemap' ? 'page' : undefined}
             data-tooltip={t('nav.livemap')}
           >
             <MapIcon size={16} />
@@ -191,6 +208,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'analytics' ? 'active' : ''}`}
             onClick={() => onTabChange('analytics')}
             title={t('nav.analytics')}
+            aria-current={currentTab === 'analytics' ? 'page' : undefined}
             data-tooltip={t('nav.analytics')}
           >
             <BarChart3 size={16} />
@@ -200,6 +218,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'alerts' ? 'active' : ''}`}
             onClick={() => onTabChange('alerts')}
             title={t('nav.alerts')}
+            aria-current={currentTab === 'alerts' ? 'page' : undefined}
             data-tooltip={t('nav.alerts')}
           >
             <Siren size={16} />
@@ -233,8 +252,8 @@ export function Shell({
             {dispatchCount > 0 && <span className="count tnum">{dispatchCount}</span>}
           </button>
           <button
-            className="nav-item"
-            onClick={onOpenReportModal}
+            className={`nav-item ${currentTab === 'reports' ? 'active' : ''}`}
+            onClick={() => onTabChange('reports')}
             title={t('nav.reports')}
             data-tooltip={t('nav.reports')}
           >
@@ -260,7 +279,7 @@ export function Shell({
             <div className="avatar">{userInitials || 'U'}</div>
             <div className="user-chip-meta">
               <div className="user-name">{authUser.name}</div>
-              <div className="user-role">{roleLabel} · Riyadh</div>
+              <div className="user-role">{roleLabel} · {t('nav.region.riyadh')}</div>
             </div>
             <ChevronRight size={14} />
           </div>
@@ -272,7 +291,7 @@ export function Shell({
         <button
           className="icon-btn hamburger-btn"
           onClick={handleNavToggle}
-          aria-label="Toggle navigation"
+          aria-label={t('app.toggleNav')}
         >
           <Menu size={16} />
         </button>
@@ -280,14 +299,12 @@ export function Shell({
         <div className="crumb desktop-only">
           <span>{t('app.crumb.monitor')}</span>
           <span className="crumb-sep"> / </span>
-          <span className="crumb-cur">
-            {t(`app.crumb.${currentTab}` as DictKey)}
-          </span>
+          <span className="crumb-cur">{currentCrumbLabel}</span>
         </div>
 
-        <span className="live">
+        <span className="live" aria-live="polite">
           <span className={`pulse ${statusMeta.dotClass}`} />
-          {statusMeta.label} · {liveAge}
+          {t(statusMeta.labelKey)} · {liveAge}
         </span>
 
         {/* ── Data-source toggle ── */}
@@ -295,24 +312,25 @@ export function Shell({
           id="data-source-toggle"
           className={`ds-toggle ${dataSource === 'demo' ? 'ds-toggle--demo' : 'ds-toggle--live'}`}
           onClick={onToggleDataSource}
-          title={dataSource === 'live' ? 'Switch to Demo data' : 'Switch to Live data'}
+          title={dataSource === 'live' ? t('app.switchToDemo') : t('app.switchToLive')}
+          aria-pressed={dataSource === 'demo'}
         >
           <span className="ds-toggle-track">
             <span className="ds-toggle-thumb" />
           </span>
           <span className="ds-toggle-live">
             <Zap size={10} />
-            Live
+            {t('app.live')}
           </span>
           <span className="ds-toggle-demo">
             <FlaskConical size={10} />
-            Demo
+            {t('app.demo')}
           </span>
         </button>
 
         {dataSource === 'demo' && (
-          <span className="topbar-demo-badge" title="Showing static demo data — not connected to live sensors">
-            DEMO
+          <span className="topbar-demo-badge" title={t('app.demo.title')}>
+            {t('app.demo.badge')}
           </span>
         )}
 
@@ -326,13 +344,13 @@ export function Shell({
           <span className="kbd desktop-only">⌘K</span>
         </div>
 
-        <button className="icon-btn desktop-only" onClick={onToggleRtl} title="Toggle direction">
+        <button className="icon-btn desktop-only" onClick={onToggleRtl} title={t('app.toggleDirection')}>
           <Languages size={15} />
         </button>
-        <button className="icon-btn desktop-only" title="Calendar">
+        <button className="icon-btn desktop-only" title={t('app.calendar')}>
           <Calendar size={15} />
         </button>
-        <button className="icon-btn" title="Notifications">
+        <button className="icon-btn" title={t('app.notifications')}>
           <Bell size={15} />
           <span className="badge tnum">{feedCount}</span>
         </button>
