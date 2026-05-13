@@ -3,7 +3,9 @@ import {
   BarChart3,
   Bell,
   Calendar,
+  ChevronLeft,
   ChevronRight,
+  Cpu,
   Download,
   FileText,
   FlaskConical,
@@ -31,7 +33,6 @@ const STATUS_META: Record<ConnectionStatus, { label: string; dotClass: string }>
   connecting: { label: 'Connecting', dotClass: 'warn' },
   reconnecting: { label: 'Reconnecting', dotClass: 'warn' },
 };
-
 export interface ShellProps {
   authUser: AuthUser;
   status: ConnectionStatus;
@@ -83,12 +84,21 @@ export function Shell({
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('climence.nav-collapsed') === '1';
   });
+  const [sideCollapsed, setSideCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('climence.side-collapsed') === '1';
+  });
   const hasSideContent = sideContent !== null;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('climence.nav-collapsed', navCollapsed ? '1' : '0');
   }, [navCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('climence.side-collapsed', sideCollapsed ? '1' : '0');
+  }, [sideCollapsed]);
 
   const userInitials = authUser.name
     .split(' ')
@@ -112,8 +122,14 @@ export function Shell({
     setNavCollapsed(prev => !prev);
   };
 
+  const handleSideToggle = () => {
+    setSideCollapsed(prev => !prev);
+  };
+
   return (
-  <div className={`app ${hasSideContent ? '' : 'app--no-side'} ${navCollapsed ? 'app--nav-collapsed' : ''}`}>
+  <div
+    className={`app ${hasSideContent ? '' : 'app--no-side'} ${navCollapsed ? 'app--nav-collapsed' : ''} ${sideCollapsed ? 'app--side-collapsed' : ''}`}
+  >
       {/* ─── Mobile hamburger overlay ─── */}
       {navOpen && (
         <div
@@ -128,10 +144,18 @@ export function Shell({
           <div className="brand-mark">
             <img src={climenceLogo} alt="Climence logo" className="brand-logo" />
           </div>
-          <div>
+          <div className="brand-copy">
             <div className="brand-name">Climence</div>
             <div className="brand-sub">{t('app.brand.sub')}</div>
           </div>
+          <button
+            className="icon-btn nav-collapse-btn"
+            onClick={handleNavToggle}
+            aria-label={navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={navCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {navCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
           {/* Close button visible only on mobile when nav is open */}
           <button
             className="icon-btn nav-close-btn"
@@ -148,6 +172,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'overview' ? 'active' : ''}`}
             onClick={() => onTabChange('overview')}
             title={t('nav.overview')}
+            data-tooltip={t('nav.overview')}
           >
             <Home size={16} />
             <span className="nav-label">{t('nav.overview')}</span>
@@ -156,6 +181,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'livemap' ? 'active' : ''}`}
             onClick={() => onTabChange('livemap')}
             title={t('nav.livemap')}
+            data-tooltip={t('nav.livemap')}
           >
             <MapIcon size={16} />
             <span className="nav-label">{t('nav.livemap')}</span>
@@ -164,6 +190,7 @@ export function Shell({
             className={`nav-item ${currentTab === 'analytics' ? 'active' : ''}`}
             onClick={() => onTabChange('analytics')}
             title={t('nav.analytics')}
+            data-tooltip={t('nav.analytics')}
           >
             <BarChart3 size={16} />
             <span className="nav-label">{t('nav.analytics')}</span>
@@ -172,29 +199,42 @@ export function Shell({
             className={`nav-item ${currentTab === 'alerts' ? 'active' : ''}`}
             onClick={() => onTabChange('alerts')}
             title={t('nav.alerts')}
+            data-tooltip={t('nav.alerts')}
           >
             <Siren size={16} />
             <span className="nav-label">{t('nav.alerts')}</span>
             <span className="count tnum">{feedCount}</span>
           </button>
+          <button 
+            className={`nav-item ${currentTab === 'sensors' ? 'active' : ''}`}
+            onClick={() => onTabChange('sensors')}
+            title="Grid Sensors"
+            data-tooltip="Grid Sensors"
+          >
+            <Radio size={16} />
+            <span className="nav-label">Grid Sensors</span>
+          </button>
         </div>
 
         <div className="nav-section">
           <div className="nav-section-title">{t('nav.operate')}</div>
-          <button
-            className={`nav-item ${currentTab === 'sensors' ? 'active' : ''}`}
-            onClick={() => onTabChange('sensors')}
-            title="Grid Sensors"
-          >
-            <Radio size={16} />
-            <span className="nav-label">Grid Sensors</span>
-            <span className="count tnum">{onlineSensors}/{totalSensors || 0}</span>
+          <button className="nav-item" title={t('nav.sensors')} data-tooltip={t('nav.sensors')}>
+            <Cpu size={16} />
+            <span className="nav-label">{t('nav.sensors')}</span>
+            <span className="count tnum">
+              {onlineSensors}/{totalSensors || 0}
+            </span>
           </button>
-          <button className="nav-item" title={t('nav.dispatch')}>
+          <button className="nav-item" title={t('nav.dispatch')} data-tooltip={t('nav.dispatch')}>
             <Users size={16} />
             <span className="nav-label">{t('nav.dispatch')}</span>
           </button>
-          <button className="nav-item" onClick={onOpenReportModal} title={t('nav.reports')}>
+          <button
+            className="nav-item"
+            onClick={onOpenReportModal}
+            title={t('nav.reports')}
+            data-tooltip={t('nav.reports')}
+          >
             <FileText size={16} />
             <span className="nav-label">{t('nav.reports')}</span>
           </button>
@@ -202,11 +242,11 @@ export function Shell({
 
         <div className="nav-section">
           <div className="nav-section-title">{t('nav.system')}</div>
-          <button className="nav-item" title={t('nav.integrations')}>
+          <button className="nav-item" title={t('nav.integrations')} data-tooltip={t('nav.integrations')}>
             <Layers size={16} />
             <span className="nav-label">{t('nav.integrations')}</span>
           </button>
-          <button className="nav-item" title={t('nav.settings')}>
+          <button className="nav-item" title={t('nav.settings')} data-tooltip={t('nav.settings')}>
             <Settings size={16} />
             <span className="nav-label">{t('nav.settings')}</span>
           </button>
@@ -251,7 +291,6 @@ export function Shell({
           className={`ds-toggle ${dataSource === 'demo' ? 'ds-toggle--demo' : 'ds-toggle--live'}`}
           onClick={onToggleDataSource}
           title={dataSource === 'live' ? 'Switch to Demo data' : 'Switch to Live data'}
-          aria-pressed={dataSource === 'demo'}
         >
           <span className="ds-toggle-track">
             <span className="ds-toggle-thumb" />
@@ -305,7 +344,21 @@ export function Shell({
         {children}
       </main>
 
-      {hasSideContent && <aside className="side">{sideContent}</aside>}
+      {hasSideContent && (
+        <aside className={`side ${sideCollapsed ? 'side--collapsed' : ''}`}>
+          <div className="side-rail-header">
+            <button
+              className="icon-btn side-collapse-btn"
+              onClick={handleSideToggle}
+              aria-label={sideCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={sideCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sideCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+            </button>
+          </div>
+          <div className="side-rail-body">{sideContent}</div>
+        </aside>
+      )}
     </div>
   );
 }
