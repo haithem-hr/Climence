@@ -8,8 +8,12 @@ import { Download, Maximize2, PieChart as PieIcon, BarChart2, Clock, RefreshCw }
 import { fetchHistoryByZone, fetchOpenMeteoHistory, fetchForecast } from '../../api/client';
 import type { ForecastPoint } from '@climence/shared';
 
+import type { DashboardData } from '../../hooks/useDashboardData';
+import { openPrintablePdf } from '../../lib/reports';
+
 interface AnalyticsViewProps {
   authToken: string | null;
+  data: DashboardData;
 }
 
 const RANGES = ['1h', '6h', '12h', '24h', '3d', '1m'] as const;
@@ -58,7 +62,7 @@ interface AnalyticsPoint {
 // Auto-refresh interval for the live 1h chart (ms)
 const LIVE_REFRESH_MS = 30_000;
 
-export function AnalyticsView({ authToken }: AnalyticsViewProps) {
+export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
   const [range, setRange]               = useState<TimeRange>('24h');
   const [showForecast, setShowForecast] = useState(false);
   const [forecastHorizon, setForecastHorizon] = useState<number>(24);
@@ -246,7 +250,10 @@ export function AnalyticsView({ authToken }: AnalyticsViewProps) {
           </div>
         </div>
 
-        <button className="analytics-export-btn">
+        <button 
+          onClick={() => openPrintablePdf(d.reportPayload)}
+          className="analytics-export-btn"
+        >
           <Download size={16} /> Export Intelligence
         </button>
       </div>

@@ -138,7 +138,7 @@ export default function App() {
       >
         {data.currentTab === 'overview' && <Dashboard data={data} position="main" onNavigate={data.setCurrentTab} />}
         {data.currentTab === 'livemap' && <LiveMapView data={data} />}
-        {data.currentTab === 'analytics' && <AnalyticsView authToken={authToken} />}
+        {data.currentTab === 'analytics' && <AnalyticsView authToken={authToken} data={data} />}
         {data.currentTab === 'alerts' && <AlertsView data={data} />}
         {data.currentTab === 'sensors' && <SensorsView data={data} />}
         {data.currentTab === 'dispatch' && <DispatchView data={data} />}

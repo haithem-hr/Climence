@@ -312,6 +312,13 @@ function hotspotsFromSensors(sensors: SensorPoint[], metricKey: PollutantKey): H
 
 /* ═══════════════════════════ THE HOOK ═══════════════════════════ */
 
+const STORAGE_KEYS = {
+  TAB:       'climence.active-tab',
+  MODE:      'climence.map-mode',
+  POLLUTANT: 'climence.active-pollutant',
+  RANGE:     'climence.active-range',
+};
+
 export function useDashboardData(
   snapshot: TelemetrySnapshot,
   status: ConnectionStatus,
@@ -321,14 +328,16 @@ export function useDashboardData(
 ) {
   const t = useCallback((key: DictKey) => translate(key, locale), [locale]);
 
-  const [mode, setMode] = useState<ViewMode>('heatmap');
-  const [pollutant, setPollutant] = useState<PollutantKey>('pm25');
-  const [range, setRange] = useState<TimeRange>('15m');
+  const [mode, setMode] = useState<ViewMode>(() => (localStorage.getItem(STORAGE_KEYS.MODE) as ViewMode) || 'heatmap');
+  const [pollutant, setPollutant] = useState<PollutantKey>(() => (localStorage.getItem(STORAGE_KEYS.POLLUTANT) as PollutantKey) || 'pm25');
+  const [range, setRange] = useState<TimeRange>(() => (localStorage.getItem(STORAGE_KEYS.RANGE) as TimeRange) || '15m');
   const [selected, setSelected] = useState<HotspotCard | null>(null);
   const [mapBounds, setMapBounds] = useState<RiyadhMapBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch'>(() => 
+    (localStorage.getItem(STORAGE_KEYS.TAB) as any) || 'overview'
+  );
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
   const [historySeries, setHistorySeries] = useState<number[]>([]);
   const [historySourceUuid, setHistorySourceUuid] = useState<string | null>(null);
@@ -336,6 +345,22 @@ export function useDashboardData(
   const [alertThresholdDraft, setAlertThresholdDraft] = useState(String(PM25_ALERT_THRESHOLD));
   const [alertConfigState, setAlertConfigState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [activeMissions, setActiveMissions] = useState<Mission[]>([]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TAB, currentTab);
+  }, [currentTab]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.MODE, mode);
+  }, [mode]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.POLLUTANT, pollutant);
+  }, [pollutant]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.RANGE, range);
+  }, [range]);
 
   useEffect(() => {
     if (!authToken) return;

@@ -180,7 +180,8 @@ function SensorDetailDialog({ isOpen, onClose, sensor, d, onDispatch }: { isOpen
   const { data: omData } = useOpenMeteoAirQuality(sensor?.lat || 0, sensor?.lng || 0);
   if (!isOpen || !sensor) return null;
 
-  const aqiBand = aqiBandFor(sensor.aqi || pm25ToAqi(sensor.pm25));
+  const aqiValue = (sensor.aqi || pm25ToAqi(sensor.pm25)) || 0;
+  const aqiBand = aqiBandFor(aqiValue);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
