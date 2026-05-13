@@ -23,7 +23,9 @@ import {
   FileText,
 } from 'lucide-react';
 import { AQI_BANDS, aqiBandFor } from '@climence/shared';
+import { useOpenMeteoAirQuality } from '../hooks/useOpenMeteoAirQuality';
 import { RiyadhGoogleMap } from './map/RiyadhGoogleMap';
+import { DispatchDialog } from './panels/DispatchDialog';
 import {
   seededSeries,
   makePath,
@@ -31,7 +33,6 @@ import {
   type PollutantStat,
   type TimeRange,
 } from '../hooks/useDashboardData';
-import { useOpenMeteoAirQuality } from '../hooks/useOpenMeteoAirQuality';
 
 /* ═══════════════════════════ SUB-COMPONENTS ═══════════════════════════ */
 
@@ -127,7 +128,7 @@ function CityTrendChart({
   );
 }
 
-function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose }: { hotspot: HotspotCard | null; historySeries: number[]; pollutantStats: PollutantStat[]; onClose: () => void }) {
+function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose, onDispatch }: { hotspot: HotspotCard | null; historySeries: number[]; pollutantStats: PollutantStat[]; onClose: () => void; onDispatch: (target: { id: string; name: string; lat: number; lng: number }) => void }) {
   const { data: omData } = useOpenMeteoAirQuality(hotspot?.lat, hotspot?.lng);
   
   if (!hotspot) return null;
@@ -179,7 +180,7 @@ function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose }: { ho
         </div>
         
         <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <button className="btn primary" style={{ justifyContent: 'center' }}><Siren size={13} />Dispatch team</button>
+          <button className="btn primary" style={{ justifyContent: 'center' }} onClick={() => onDispatch({ id: hotspot.id, name: hotspot.name, lat: hotspot.lat, lng: hotspot.lng })}><Siren size={13} />Dispatch team</button>
           <button className="btn" style={{ justifyContent: 'center' }}><FileText size={13} />Full report</button>
         </div>
       </div>
@@ -213,6 +214,7 @@ function MainContent({ d, onNavigate }: { d: DashboardData; onNavigate?: (tab: '
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('climence.kpi-collapsed') === '1';
   });
+  const [dispatchTarget, setDispatchTarget] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -287,7 +289,7 @@ function MainContent({ d, onNavigate }: { d: DashboardData; onNavigate?: (tab: '
       </div>
 
       <div className="stage">
-        <RiyadhGoogleMap mode={d.mode} sensors={d.sensors} hotspots={d.mapHotspots} heatmapPoints={d.mapHeatmapPoints} zoomPreset={d.zoomPreset} focusTarget={d.mapFocusTarget} onViewportChange={d.handleMapViewportChange} onPickSensor={d.handlePickSensor} />
+        <RiyadhGoogleMap mode={d.mode} sensors={d.sensors} hotspots={d.mapHotspots} heatmapPoints={d.mapHeatmapPoints} zoomPreset={d.zoomPreset} focusTarget={d.mapFocusTarget} onViewportChange={d.handleMapViewportChange} onPickSensor={d.handlePickSensor} activeMissions={d.activeMissions} onDispatch={setDispatchTarget} />
 
         <div className="map-panel-tl">
           <div className="pollutants">
@@ -336,7 +338,16 @@ function MainContent({ d, onNavigate }: { d: DashboardData; onNavigate?: (tab: '
           <span className="item">24.7136°, 46.6753°</span>
         </div>
 
-        <HotspotDrawer hotspot={d.selectedHotspot} historySeries={d.drawerHistorySeries} pollutantStats={d.pollutantStats} onClose={() => d.setSelected(null)} />
+        <HotspotDrawer hotspot={d.selectedHotspot} historySeries={d.drawerHistorySeries} pollutantStats={d.pollutantStats} onClose={() => d.setSelected(null)} onDispatch={setDispatchTarget} />
+
+        <DispatchDialog
+          isOpen={!!dispatchTarget}
+          onClose={() => setDispatchTarget(null)}
+          onConfirm={d.handleDispatch}
+          targetId={dispatchTarget?.id ?? ''}
+          targetName={dispatchTarget?.name ?? ''}
+          targetCoord={{ lat: dispatchTarget?.lat ?? 0, lng: dispatchTarget?.lng ?? 0 }}
+        />
       </div>
     </>
   );
@@ -353,7 +364,7 @@ function SideContent({ d }: { d: DashboardData }) {
           <div className="banner-title">{d.t('banner.over')} · +{d.thresholdExceededBy} µg/m³</div>
           <div className="banner-sub">Citywide advisory active</div>
         </div>
-        <button className="banner-cta">{d.t('banner.dispatch')}</button>
+        <button className="banner-cta" onClick={() => d.setCurrentTab('dispatch')}>{d.t('banner.dispatch')}</button>
       </div>
 
 

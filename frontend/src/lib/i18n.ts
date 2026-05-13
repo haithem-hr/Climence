@@ -14,6 +14,7 @@ export const DICT = {
   },
   'app.crumb.monitor': { en: 'Monitor', ar: 'مراقبة' },
   'app.crumb.overview': { en: 'Overview', ar: 'نظرة عامة' },
+  'app.crumb.dispatch': { en: 'Dispatch Control', ar: 'التحكم في الإرسال' },
 
   // nav sections / items
   'nav.monitor': { en: 'Monitor', ar: 'مراقبة' },

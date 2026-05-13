@@ -6,12 +6,12 @@ let pollingInterval: NodeJS.Timeout | null = null;
 
 export async function fetchOpenMeteoForecast() {
   try {
-    // past_days=92 gives ~3 months of history + 5 days forward
+    // past_days=92 gives ~3 months of history + 7 days forward
     const url =
       `https://air-quality-api.open-meteo.com/v1/air-quality` +
       `?latitude=${RIYADH_CENTER.lat}&longitude=${RIYADH_CENTER.lng}` +
       `&hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,dust` +
-      `&timezone=UTC&past_days=92`;
+      `&timezone=UTC&past_days=92&forecast_days=7`;
 
     const res  = await fetch(url);
     const data = await res.json();

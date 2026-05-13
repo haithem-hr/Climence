@@ -5,7 +5,6 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Cpu,
   Download,
   FileText,
   FlaskConical,
@@ -38,6 +37,7 @@ export interface ShellProps {
   status: ConnectionStatus;
   liveAge: string;
   feedCount: number;
+  dispatchCount?: number;
   onlineSensors: number;
   totalSensors: number;
   locale: Locale;
@@ -50,8 +50,8 @@ export interface ShellProps {
   children: ReactNode;
   /** Everything rendered inside the side rail (<aside>). */
   sideContent: ReactNode;
-  currentTab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors';
-  onTabChange: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors') => void;
+  currentTab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch';
+  onTabChange: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch') => void;
   /** Current data source mode. */
   dataSource: DataSource;
   /** Callback to toggle between live and demo. */
@@ -63,6 +63,7 @@ export function Shell({
   status,
   liveAge,
   feedCount,
+  dispatchCount = 0,
   onlineSensors,
   totalSensors,
   locale,
@@ -221,9 +222,15 @@ export function Shell({
               {onlineSensors}/{totalSensors || 0}
             </span>
           </button>
-          <button className="nav-item" title={t('nav.dispatch')} data-tooltip={t('nav.dispatch')}>
+          <button 
+            className={`nav-item ${currentTab === 'dispatch' ? 'active' : ''}`}
+            onClick={() => onTabChange('dispatch')}
+            title={t('nav.dispatch')} 
+            data-tooltip={t('nav.dispatch')}
+          >
             <Users size={16} />
             <span className="nav-label">{t('nav.dispatch')}</span>
+            {dispatchCount > 0 && <span className="count tnum">{dispatchCount}</span>}
           </button>
           <button
             className="nav-item"
@@ -273,7 +280,9 @@ export function Shell({
         <div className="crumb desktop-only">
           <span>{t('app.crumb.monitor')}</span>
           <span className="crumb-sep"> / </span>
-          <span className="crumb-cur">{t('app.crumb.overview')}</span>
+          <span className="crumb-cur">
+            {t(`app.crumb.${currentTab}` as DictKey)}
+          </span>
         </div>
 
         <span className="live">

@@ -99,6 +99,33 @@ export interface FeedItem {
   title: string;
   meta: string;
   time: string;
+  lat: number;
+  lng: number;
+}
+
+export type ResourceType = 'drone' | 'team';
+export type MissionPriority = 'low' | 'high' | 'crit';
+export type MissionStatus = 'pending' | 'en_route' | 'on_site' | 'returning' | 'completed';
+
+export interface Mission {
+  id: string;
+  targetId: string; // Sensor uuid or Hotspot id
+  targetName: string;
+  targetCoord: { lat: number; lng: number };
+  resourceType: ResourceType;
+  priority: MissionPriority;
+  status: MissionStatus;
+  report?: string;
+  startTime: string;
+}
+
+export interface MissionConfig {
+  targetId: string;
+  targetName: string;
+  targetCoord: { lat: number; lng: number };
+  resourceType: ResourceType;
+  priority: MissionPriority;
+  notes?: string;
 }
 
 /* ═══════════════════════════ CONSTANTS ═══════════════════════════ */
@@ -301,13 +328,14 @@ export function useDashboardData(
   const [mapBounds, setMapBounds] = useState<RiyadhMapBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch'>('overview');
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
   const [historySeries, setHistorySeries] = useState<number[]>([]);
   const [historySourceUuid, setHistorySourceUuid] = useState<string | null>(null);
   const [alertThreshold, setAlertThreshold] = useState(PM25_ALERT_THRESHOLD);
   const [alertThresholdDraft, setAlertThresholdDraft] = useState(String(PM25_ALERT_THRESHOLD));
   const [alertConfigState, setAlertConfigState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [activeMissions, setActiveMissions] = useState<Mission[]>([]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -477,10 +505,26 @@ export function useDashboardData(
         let severity: AlertSeverity = 'info';
         if (alert.pm25 >= effectiveAlertThreshold + 45) severity = 'crit';
         else if (alert.pm25 >= effectiveAlertThreshold) severity = 'warn';
-        return { id: `${alert.uuid}-${alert.id}`, severity, title: `PM2.5 threshold exceeded · ${Math.round(alert.pm25)} ug/m3`, meta: `${alert.uuid.slice(0, 8)} · ${alert.state}`, time: formatAgo(alert.server_timestamp) };
+        return { 
+          id: `${alert.uuid}-${alert.id}`, 
+          severity, 
+          title: `PM2.5 threshold exceeded · ${Math.round(alert.pm25)} ug/m3`, 
+          meta: `${alert.uuid.slice(0, 8)} · ${alert.state}`, 
+          time: formatAgo(alert.server_timestamp),
+          lat: alert.lat,
+          lng: alert.lng
+        };
       });
     }
-    return hotspots.slice(0, 5).map((h, i) => ({ id: `fallback-${h.id}`, severity: (i === 0 ? 'crit' : i < 3 ? 'warn' : 'ok') as AlertSeverity, title: `${h.name} monitoring advisory`, meta: `${h.coord} · ${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}`, time: `${(i + 1) * 5}m` }));
+    return hotspots.slice(0, 5).map((h, i) => ({ 
+      id: `fallback-${h.id}`, 
+      severity: (i === 0 ? 'crit' : i < 3 ? 'warn' : 'ok') as AlertSeverity, 
+      title: `${h.name} monitoring advisory`, 
+      meta: `${h.coord} · ${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}`, 
+      time: `${(i + 1) * 5}m`,
+      lat: h.lat,
+      lng: h.lng
+    }));
   }, [effectiveAlertThreshold, snapshot.alerts, hotspots]);
 
   const liveAge = formatAgo(snapshot.emittedAt);
@@ -531,6 +575,24 @@ export function useDashboardData(
     trendLabel, generatedBy: authUser ? `${authUser.name} (${authUser.role})` : 'Unknown',
   }), [authUser, cityAqi, effectiveAlertThreshold, forecast, hotspots, onlineSensors, sensors.length, snapshot, sources, trendLabel]);
 
+  const handleDispatch = useCallback((config: MissionConfig) => {
+    const newMission: Mission = {
+      ...config,
+      id: `m-${Date.now()}`,
+      status: 'en_route',
+      startTime: new Date().toISOString(),
+    };
+    setActiveMissions(prev => [newMission, ...prev]);
+    // Simulate mission lifecycle for UI demonstration
+    setTimeout(() => {
+      setActiveMissions(prev => prev.map(m => m.id === newMission.id ? { ...m, status: 'on_site' } : m));
+    }, 5000);
+  }, []);
+
+  const handleCompleteMission = useCallback((missionId: string, report?: string) => {
+    setActiveMissions(prev => prev.map(m => m.id === missionId ? { ...m, status: 'completed', report } : m));
+  }, []);
+
   return {
     // layout
     currentTab, setCurrentTab,
@@ -553,6 +615,8 @@ export function useDashboardData(
     handleSaveAlertThreshold, canManageAlertSettings, thresholdExceededBy,
     // history drawer
     drawerHistorySeries, historySeries,
+    // dispatch
+    activeMissions, handleDispatch, handleCompleteMission,
     // meta
     liveAge, status, t, reportPayload,
   };
