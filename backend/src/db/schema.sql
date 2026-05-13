@@ -22,3 +22,17 @@ CREATE TABLE IF NOT EXISTS AlertConfig (
 );
 
 INSERT OR IGNORE INTO AlertConfig (id, pm25_threshold) VALUES (1, 140);
+
+CREATE TABLE IF NOT EXISTS Missions (
+  id TEXT PRIMARY KEY,
+  target_id TEXT NOT NULL,
+  target_name TEXT NOT NULL,
+  lat REAL NOT NULL,
+  lng REAL NOT NULL,
+  resource_type TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  status TEXT NOT NULL,
+  report TEXT,
+  start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

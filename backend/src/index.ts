@@ -6,6 +6,7 @@ import authRouter from './routes/auth';
 import alertsRouter from './routes/alerts';
 import analyticsRouter from './routes/analytics';
 import telemetryRouter from './routes/telemetry';
+import missionsRouter from './routes/missions';
 import { setupWebSocket } from './ws';
 import { startOpenMeteoPolling } from './features/analytics/openMeteo';
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRouter);
 app.use('/api/telemetry', telemetryRouter);
+app.use('/api/missions', missionsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/alerts', alertsRouter);
 

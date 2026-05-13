@@ -19,7 +19,7 @@ import {
   type TelemetryRecord,
   type TelemetrySnapshot,
 } from '@climence/shared';
-import { fetchAlertConfig, fetchHistory, updateAlertConfig } from '../api/client';
+import { fetchAlertConfig, fetchHistory, updateAlertConfig, createMission, updateMission } from '../api/client';
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from '../lib/analytics';
@@ -346,6 +346,25 @@ export function useDashboardData(
     return () => { cancelled = true; };
   }, [authToken]);
 
+  // Sync missions from snapshot
+  useEffect(() => {
+    if ((snapshot as any).missions) {
+      const records = (snapshot as any).missions as any[];
+      const converted: Mission[] = records.map(r => ({
+        id: r.id,
+        targetId: r.target_id,
+        targetName: r.target_name,
+        targetCoord: { lat: r.lat, lng: r.lng },
+        resourceType: r.resource_type,
+        priority: r.priority,
+        status: r.status,
+        report: r.report,
+        startTime: r.start_time,
+      }));
+      setActiveMissions(converted);
+    }
+  }, [snapshot]);
+
   const validDrones = useMemo(
     () => snapshot.drones.filter(isValidTelemetryRecord),
     [snapshot.drones],
@@ -576,22 +595,46 @@ export function useDashboardData(
   }), [authUser, cityAqi, effectiveAlertThreshold, forecast, hotspots, onlineSensors, sensors.length, snapshot, sources, trendLabel]);
 
   const handleDispatch = useCallback((config: MissionConfig) => {
+    if (!authToken) return;
     const newMission: Mission = {
       ...config,
       id: `m-${Date.now()}`,
       status: 'en_route',
       startTime: new Date().toISOString(),
     };
+    
+    // Optimistic update
     setActiveMissions(prev => [newMission, ...prev]);
-    // Simulate mission lifecycle for UI demonstration
+    
+    createMission({
+      id: newMission.id,
+      targetId: newMission.targetId,
+      targetName: newMission.targetName,
+      lat: newMission.targetCoord.lat,
+      lng: newMission.targetCoord.lng,
+      resourceType: newMission.resourceType,
+      priority: newMission.priority,
+      status: newMission.status
+    }, authToken).catch(err => {
+      console.error('Failed to create mission:', err);
+      // Rollback if needed, but snapshot will eventually fix it
+    });
+
+    // Automate "on_site" transition for demo purposes if not immediately handled by backend
     setTimeout(() => {
-      setActiveMissions(prev => prev.map(m => m.id === newMission.id ? { ...m, status: 'on_site' } : m));
+      updateMission(newMission.id, { status: 'on_site' }, authToken).catch(() => {});
     }, 5000);
-  }, []);
+  }, [authToken]);
 
   const handleCompleteMission = useCallback((missionId: string, report?: string) => {
+    if (!authToken) return;
+    
+    // Optimistic update
     setActiveMissions(prev => prev.map(m => m.id === missionId ? { ...m, status: 'completed', report } : m));
-  }, []);
+    
+    updateMission(missionId, { status: 'completed', report }, authToken)
+      .catch(err => console.error('Failed to complete mission:', err));
+  }, [authToken]);
 
   return {
     // layout

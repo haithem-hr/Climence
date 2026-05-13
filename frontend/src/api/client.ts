@@ -138,3 +138,23 @@ export async function updateAlertConfig(pm25Threshold: number, token: string): P
   if (!res.ok) throw new Error(`PUT alert config failed: ${res.status}`);
   return res.json() as Promise<AlertConfigResponse>;
 }
+
+export async function createMission(mission: any, token: string) {
+  const res = await fetch(`${API_BASE_URL}/api/missions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...withAuth(token) },
+    body: JSON.stringify(mission),
+  });
+  if (!res.ok) throw new Error(`POST mission failed: ${res.status}`);
+  return res.json();
+}
+
+export async function updateMission(id: string, payload: { status: string; report?: string }, token: string) {
+  const res = await fetch(`${API_BASE_URL}/api/missions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...withAuth(token) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`PATCH mission failed: ${res.status}`);
+  return res.json();
+}

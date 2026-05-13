@@ -13,6 +13,20 @@ import { classifyTrend, type TrendPoint } from '../features/analytics/trend.js';
 import { computeForecast, type HourlyReading } from '../features/analytics/forecast.js';
 import { attributeSources, type AttributionReading } from '../features/analytics/sources.js';
 
+export interface MissionRecord {
+  id: string;
+  target_id: string;
+  target_name: string;
+  lat: number;
+  lng: number;
+  resource_type: string;
+  priority: string;
+  status: string;
+  report?: string;
+  start_time: string;
+  updated_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Existing queries
 // ---------------------------------------------------------------------------
@@ -422,6 +436,36 @@ export function computeSnapshot(): TelemetrySnapshot {
     forecast,
     sources,
     alertThresholdPm25,
+    missions: getAllMissions(),
     emittedAt: new Date().toISOString(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Mission Queries
+// ---------------------------------------------------------------------------
+
+const insertMissionStmt = db.prepare(`
+  INSERT INTO Missions (
+    id, target_id, target_name, lat, lng, resource_type, priority, status
+  ) VALUES (
+    @id, @targetId, @targetName, @lat, @lng, @resourceType, @priority, @status
+  )
+`);
+
+export const insertMission = (m: any) => insertMissionStmt.run(m);
+
+const updateMissionStatusStmt = db.prepare(`
+  UPDATE Missions 
+  SET status = @status, report = @report, updated_at = CURRENT_TIMESTAMP 
+  WHERE id = @id
+`);
+
+export const updateMissionStatus = (id: string, status: string, report?: string) => 
+  updateMissionStatusStmt.run({ id, status, report });
+
+const allMissionsStmt = db.prepare(`
+  SELECT * FROM Missions ORDER BY start_time DESC
+`);
+
+export const getAllMissions = (): MissionRecord[] => allMissionsStmt.all() as MissionRecord[];
