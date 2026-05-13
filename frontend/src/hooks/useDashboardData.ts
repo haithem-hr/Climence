@@ -302,7 +302,7 @@ export function useDashboardData(
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
   const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors'>('overview');
-  const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number } | null>(null);
+  const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
   const [historySeries, setHistorySeries] = useState<number[]>([]);
   const [historySourceUuid, setHistorySourceUuid] = useState<string | null>(null);
   const [alertThreshold, setAlertThreshold] = useState(PM25_ALERT_THRESHOLD);
@@ -343,7 +343,30 @@ export function useDashboardData(
     return hotspotsFromSensors(sensors, pollutant);
   }, [pollutant, snapshot.hotspots, sensors]);
 
-  const selectedHotspot = useMemo(() => !selected ? null : hotspots.find(h => h.id === selected.id) ?? null, [hotspots, selected]);
+  const selectedHotspot = useMemo(() => {
+    if (!selected) return null;
+    const inHotspots = hotspots.find(h => h.id === selected.id);
+    if (inHotspots) return inHotspots;
+    
+    // If it's a sensor that isn't in the top hotspots, look it up in sensors to keep values live
+    if (selected.sourceUuid) {
+      const source = sensors.find(s => s.uuid === selected.sourceUuid);
+      if (source) {
+        const metricValue = getMapMetricValue(pollutant, source);
+        return {
+          ...selected,
+          lat: source.lat,
+          lng: source.lng,
+          aqi: source.aqi,
+          metricKey: pollutant,
+          metricValue,
+          metricDisplayValue: formatMetricValue(pollutant, metricValue),
+          band: bandForMetricValue(pollutant, metricValue)
+        };
+      }
+    }
+    return selected;
+  }, [hotspots, selected, sensors, pollutant]);
 
   const mapHeatmapPoints = useMemo<HeatmapPoint[]>(
     () => sensors.map(s => ({ lat: s.lat, lng: s.lng, intensity: heatIntensityForMetric(pollutant, getMapMetricValue(pollutant, s)) })),
@@ -472,6 +495,8 @@ export function useDashboardData(
     const id = source?.id ?? `S-${sensor.uuid.slice(-4).toUpperCase()}`;
     const metricValue = getMapMetricValue(pollutant, source ?? { pm25: sensor.pm25, co2: 0, no2: 0, temperature: 0, humidity: 0, battery: sensor.battery });
     setSelected({ id, name: sensor.label, coord: formatCoord(sensor.lat, sensor.lng), lat: sensor.lat, lng: sensor.lng, aqi: sensor.aqi, metricKey: pollutant, metricLabel: activeMetricConfig.label, metricUnit: activeMetricConfig.unit, metricValue, metricDisplayValue: formatMetricValue(pollutant, metricValue), band: bandForMetricValue(pollutant, metricValue), trend: Math.round((metricValue % 15) - 4), pollutant: activeMetricConfig.label, sourceUuid: sensor.uuid });
+    setZoomPreset('zone');
+    setMapFocusTarget({ lat: sensor.lat, lng: sensor.lng, zoom: 14, nonce: Date.now(), uuid: sensor.uuid });
   }, [activeMetricConfig, pollutant, sensors]);
 
   const handleMapViewportChange = useCallback((viewport: { bounds: RiyadhMapBounds; zoom: number }) => { setMapBounds(viewport.bounds); setMapZoom(viewport.zoom); }, []);

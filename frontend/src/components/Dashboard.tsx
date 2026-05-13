@@ -31,6 +31,7 @@ import {
   type PollutantStat,
   type TimeRange,
 } from '../hooks/useDashboardData';
+import { useOpenMeteoAirQuality } from '../hooks/useOpenMeteoAirQuality';
 
 /* ═══════════════════════════ SUB-COMPONENTS ═══════════════════════════ */
 
@@ -127,9 +128,25 @@ function CityTrendChart({
 }
 
 function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose }: { hotspot: HotspotCard | null; historySeries: number[]; pollutantStats: PollutantStat[]; onClose: () => void }) {
+  const { data: omData } = useOpenMeteoAirQuality(hotspot?.lat, hotspot?.lng);
+  
   if (!hotspot) return null;
   const band = AQI_BANDS.find(b => b.key === hotspot.band);
   const series = historySeries.length > 0 ? historySeries : seededSeries(7, 48, hotspot.metricValue * 0.75, 40);
+  
+  // Combine hardware stats with Open-Meteo if available
+  const extendedStats = [...pollutantStats.slice(0, 4)];
+  if (omData?.current) {
+    const c = omData.current;
+    const u = omData.current_units;
+    extendedStats.push({ key: 'pm10', name: 'PM10', unit: u.pm10 || 'µg/m³', value: c.pm10, delta: 0, pct: 0 });
+    extendedStats.push({ key: 'ozone', name: 'O3', unit: u.ozone || 'µg/m³', value: c.ozone, delta: 0, pct: 0 });
+    extendedStats.push({ key: 'so2', name: 'SO2', unit: u.sulphur_dioxide || 'µg/m³', value: c.sulphur_dioxide, delta: 0, pct: 0 });
+    extendedStats.push({ key: 'dust', name: 'Dust', unit: u.dust || 'µg/m³', value: c.dust, delta: 0, pct: 0 });
+    extendedStats.push({ key: 'uv', name: 'UV Index', unit: '', value: c.uv_index, delta: 0, pct: 0 });
+    extendedStats.push({ key: 'eu_aqi', name: 'EU AQI', unit: '', value: c.european_aqi, delta: 0, pct: 0 });
+  }
+
   return (
     <div className={`drawer ${hotspot ? 'open' : ''}`}>
       <div className="drawer-head">
@@ -150,15 +167,17 @@ function HotspotDrawer({ hotspot, historySeries, pollutantStats, onClose }: { ho
         </div>
         <div style={{ margin: '14px 0 6px' }} className="eyebrow">48h trend</div>
         <div style={{ height: 60 }}><Sparkline data={series} color={`var(--aqi-${hotspot.band})`} width={380} height={60} /></div>
-        <div style={{ marginTop: 18 }} className="eyebrow">Pollutant readings</div>
+        
+        <div style={{ marginTop: 18 }} className="eyebrow">Live Atmospheric Readings</div>
         <div className="pollutant-grid" style={{ marginTop: 8 }}>
-          {pollutantStats.slice(0, 4).map(stat => (
+          {extendedStats.map(stat => (
             <div key={stat.key} className="pcard" style={{ cursor: 'default' }}>
               <div className="pcard-head"><div className="pcard-name">{stat.name} <span className="sub">{stat.unit}</span></div></div>
               <div className="pcard-val tnum" style={{ fontSize: 22 }}>{stat.value.toFixed(stat.value < 10 ? 1 : 0)}<span className="pcard-unit">{stat.unit}</span></div>
             </div>
           ))}
         </div>
+        
         <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button className="btn primary" style={{ justifyContent: 'center' }}><Siren size={13} />Dispatch team</button>
           <button className="btn" style={{ justifyContent: 'center' }}><FileText size={13} />Full report</button>
@@ -378,8 +397,8 @@ function SideContent({ d }: { d: DashboardData }) {
           {d.hotspots.map((hotspot, index) => (
             <li key={hotspot.id} className={`hotspot ${d.selectedHotspot?.id === hotspot.id ? 'selected' : ''}`} onClick={() => d.handlePickHotspot(hotspot)}>
               <div className="hotspot-rank">#{String(index + 1).padStart(2, '0')}</div>
-              <div><div className="hotspot-name">{hotspot.name}</div><div className="hotspot-coord">{hotspot.coord} · dom. {hotspot.pollutant}</div></div>
-              <div className={`hotspot-val ${hotspot.band}`}><div className="n tnum">{hotspot.metricDisplayValue}</div><div className="u">{hotspot.metricLabel} · {hotspot.trend > 0 ? '+' : ''}{hotspot.trend}%</div></div>
+              <div><div className="hotspot-name">{hotspot.name}</div><div className="hotspot-coord">{hotspot.coord} · dom. AQI</div></div>
+              <div className={`hotspot-val ${hotspot.band}`}><div className="n tnum">{Math.round(hotspot.aqi)}</div><div className="u">AQI · {hotspot.trend > 0 ? '+' : ''}{hotspot.trend}%</div></div>
             </li>
           ))}
         </ul>
