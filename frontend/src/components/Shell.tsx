@@ -4,7 +4,6 @@ import {
   Bell,
   Calendar,
   ChevronRight,
-  Cpu,
   Download,
   FileText,
   FlaskConical,
@@ -178,24 +177,18 @@ export function Shell({
             <span className="nav-label">{t('nav.alerts')}</span>
             <span className="count tnum">{feedCount}</span>
           </button>
-          <button 
+        </div>
+
+        <div className="nav-section">
+          <div className="nav-section-title">{t('nav.operate')}</div>
+          <button
             className={`nav-item ${currentTab === 'sensors' ? 'active' : ''}`}
             onClick={() => onTabChange('sensors')}
             title="Grid Sensors"
           >
             <Radio size={16} />
             <span className="nav-label">Grid Sensors</span>
-          </button>
-        </div>
-
-        <div className="nav-section">
-          <div className="nav-section-title">{t('nav.operate')}</div>
-          <button className="nav-item" title={t('nav.sensors')}>
-            <Cpu size={16} />
-            <span className="nav-label">{t('nav.sensors')}</span>
-            <span className="count tnum">
-              {onlineSensors}/{totalSensors || 0}
-            </span>
+            <span className="count tnum">{onlineSensors}/{totalSensors || 0}</span>
           </button>
           <button className="nav-item" title={t('nav.dispatch')}>
             <Users size={16} />
