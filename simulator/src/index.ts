@@ -5,4 +5,4 @@ const endpoint = `${API_BASE_URL}/api/telemetry`;
 console.log(`Starting Drone Simulator... Targeting Central Ingestion API at ${endpoint}`);
 
 const fleet = new FleetManager(DRONE_FLEET_SIZE, endpoint);
-fleet.startSimulation(TELEMETRY_INTERVAL_MS);
+await fleet.startSimulation(TELEMETRY_INTERVAL_MS);

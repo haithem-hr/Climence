@@ -8,26 +8,7 @@ import { broadcastSnapshot } from '../ws';
 
 const router = Router();
 const canViewTelemetry = rolesForPermission('canViewTelemetry');
-const canIngestTelemetry = rolesForPermission('canIngestTelemetry');
-
-router.post('/', requireAuth, requireRole(...canIngestTelemetry), (req, res) => {
-  const validation = validateTelemetryPayload(req.body);
-  if (!validation.ok) {
-    sendBadRequest(res, validation.error);
-    return;
-  }
-
-  try {
-    insertFleet(validation.payload.fleet);
-    broadcastSnapshot();
-    console.log(
-      `[${new Date().toISOString()}] Ingested telemetry for ${validation.payload.fleet.length} drones.`,
-    );
-    res.status(200).json({ status: 'success', count: validation.payload.fleet.length });
-  } catch (err) {
-    sendInternalError(res, 'Database insertion error', err);
-  }
-});
+// Legacy HTTP POST telemetry ingestion removed. Now exclusively handled via MQTT.
 
 router.get('/latest', requireAuth, requireRole(...canViewTelemetry), (_req, res) => {
   try {

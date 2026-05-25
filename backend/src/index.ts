@@ -9,8 +9,10 @@ import telemetryRouter from './routes/telemetry';
 import missionsRouter from './routes/missions';
 import { setupWebSocket } from './ws';
 import { startOpenMeteoPolling } from './features/analytics/openMeteo';
+import { setupMqttBroker } from './mqtt';
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -23,6 +25,7 @@ app.use('/api/alerts', alertsRouter);
 const server = createServer(app);
 setupWebSocket(server);
 startOpenMeteoPolling();
+await setupMqttBroker(1883);
 
 server.listen(API_PORT, () => {
   console.log(`Central Ingestion API listening on http://localhost:${API_PORT}`);
