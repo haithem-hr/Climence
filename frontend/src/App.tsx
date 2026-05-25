@@ -46,6 +46,7 @@ import {
 import { fetchAlertConfig, fetchHistory, login, updateAlertConfig } from './api/client';
 import { RiyadhGoogleMap, type RiyadhMapSensor } from './components/map/RiyadhGoogleMap';
 import { ReportModal } from './components/ReportModal';
+<<<<<<< Updated upstream
 import { useLiveTelemetry, type ConnectionStatus } from './hooks/useLiveTelemetry';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from './lib/analytics';
 import { translate, type DictKey, type Locale } from './lib/i18n';
@@ -57,6 +58,13 @@ import {
   saveAuthSession,
 } from './lib/auth-session';
 import climenceLogo from './assets/climence-logo.png';
+=======
+import { AnalyticsView } from './components/panels/AnalyticsView';
+import { LiveMapView } from './components/panels/LiveMapView';
+import { AlertsView } from './components/panels/AlertsView';
+import { SensorsView } from './components/panels/SensorsView';
+import { ReportsView } from './components/panels/ReportsView';
+>>>>>>> Stashed changes
 
 type ViewMode = 'hardware' | 'heatmap';
 type TimeRange = '1h' | '24h' | '7d' | '30d';
@@ -939,6 +947,7 @@ export default function App() {
         : 'Viewer';
 
   return (
+<<<<<<< Updated upstream
     <div className="app">
       <nav className="nav">
         <div className="brand">
@@ -1606,6 +1615,34 @@ export default function App() {
           </ul>
         </div>
       </aside>
+=======
+    <>
+      <Shell
+        authUser={authUser}
+        status={status}
+        liveAge={data.liveAge}
+        feedCount={data.feed.length}
+        onlineSensors={data.onlineSensors}
+        totalSensors={data.sensors.length}
+        locale={locale}
+        onToggleRtl={() => setRtl(prev => !prev)}
+        onOpenReportModal={() => setReportModalOpen(true)}
+        onLogout={handleLogout}
+        modeSegment={modeSegment}
+        currentTab={data.currentTab}
+        onTabChange={data.setCurrentTab}
+        dataSource={dataSource}
+        onToggleDataSource={handleToggleDataSource}
+        sideContent={data.currentTab === 'overview' ? <Dashboard data={data} position="side" /> : null}
+      >
+        {data.currentTab === 'overview' && <Dashboard data={data} position="main" onNavigate={data.setCurrentTab} onOpenReportModal={() => setReportModalOpen(true)} />}
+        {data.currentTab === 'livemap' && <LiveMapView data={data} />}
+        {data.currentTab === 'analytics' && <AnalyticsView authToken={authToken} data={data} />}
+        {data.currentTab === 'alerts' && <AlertsView data={data} />}
+        {data.currentTab === 'sensors' && <SensorsView data={data} />}
+        {data.currentTab === 'reports' && <ReportsView data={data} locale={locale} />}
+      </Shell>
+>>>>>>> Stashed changes
 
       <ReportModal
         open={reportModalOpen}

@@ -1,37 +1,15 @@
-import axios from 'axios';
 import type { TelemetryPayload } from '@climence/shared';
 import { DroneDevice } from './DroneDevice';
+import mqtt from 'mqtt';
+import fs from 'fs';
+import path from 'path';
+import csv from 'csv-parser';
 
-interface ActiveAlertRecord {
-  lat: number;
-  lng: number;
-  pm25: number;
-}
-
-interface HazardZone {
-  id: string;
-  lat: number;
-  lng: number;
-  peakPm25: number;
-}
-
-interface LoginResponse {
-  token: string;
-  expiresAt?: string;
-}
-
-const AUTH_REFRESH_SKEW_MS = 30_000;
-const DEFAULT_ALERT_POLL_INTERVAL_MS = 10_000;
-const DEFAULT_MAX_DRONES_PER_HAZARD = 3;
-
-function parsePositiveInt(raw: string | undefined, fallback: number) {
-  const value = Number.parseInt(raw ?? '', 10);
-  if (!Number.isFinite(value) || value <= 0) return fallback;
-  return value;
-}
+const CSV_FILE = path.join(process.cwd(), '../data/fleet_flight_paths.csv');
 
 export class FleetManager {
   private drones: DroneDevice[] = [];
+<<<<<<< Updated upstream
   private readonly endpoint: string;
   private readonly alertsEndpoint: string;
   private readonly loginEndpoint: string;
@@ -46,50 +24,66 @@ export class FleetManager {
   private lastTickMs = Date.now();
   private lastAlertPollMs = 0;
   private tickInFlight = false;
+=======
+  private mqttClient: mqtt.MqttClient;
+  private flightData: Map<number, any[]> = new Map();
+  private tickIndices: Map<number, number> = new Map();
+>>>>>>> Stashed changes
 
   constructor(droneCount: number, endpoint: string) {
-    this.endpoint = endpoint;
-    const apiOrigin = new URL(endpoint).origin;
-    this.alertsEndpoint = `${apiOrigin}/api/alerts/active`;
-    this.loginEndpoint = `${apiOrigin}/api/auth/login`;
-    this.alertPollIntervalMs = parsePositiveInt(
-      process.env.SIMULATOR_ALERT_POLL_MS,
-      DEFAULT_ALERT_POLL_INTERVAL_MS,
-    );
-    this.maxDronesPerHazard = parsePositiveInt(
-      process.env.SIMULATOR_MAX_DRONES_PER_HAZARD,
-      DEFAULT_MAX_DRONES_PER_HAZARD,
-    );
-    this.authEmail = process.env.SIMULATOR_AUTH_EMAIL ?? 'analyst@mewa.gov.sa';
-    this.authPassword = process.env.SIMULATOR_AUTH_PASSWORD ?? 'Analyst123!';
-
-    this.authToken = process.env.SIMULATOR_AUTH_TOKEN ?? null;
-    this.authTokenExpiresAtMs = this.authToken ? Number.POSITIVE_INFINITY : 0;
-
     for (let i = 0; i < droneCount; i++) {
       this.drones.push(new DroneDevice(i));
+      this.flightData.set(i, []);
+      this.tickIndices.set(i, 0);
     }
+
+    const brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883';
+    this.mqttClient = mqtt.connect(brokerUrl, {
+      username: 'drone',
+      password: 'flight123',
+      clientId: `SIM-FLEET-${Math.floor(Math.random() * 1000)}`,
+      clean: true,
+      connectTimeout: 4000,
+    });
+
+    this.mqttClient.on('connect', () => {
+      console.log(`✅ FleetManager edge gateway connected to MQTT broker at ${brokerUrl}`);
+    });
+
+    this.mqttClient.on('error', (err) => {
+      console.error(`❌ MQTT Gateway Error:`, err.message);
+    });
   }
 
-  public startSimulation(intervalMs: number) {
-    console.log(`Starting fleet simulation with ${this.drones.length} drones.`);
-    console.log(
-      `Hazard dispatch: polling every ${this.alertPollIntervalMs}ms, max ${this.maxDronesPerHazard} drones per hazard.`,
-    );
-    void this.tick();
+  public async startSimulation(intervalMs: number) {
+    console.log(`Starting CSV fleet simulation with ${this.drones.length} drones.`);
+    console.log(`📂 Loading flight data from ${CSV_FILE}...`);
+    
+    await new Promise<void>((resolve, reject) => {
+      fs.createReadStream(CSV_FILE)
+        .pipe(csv())
+        .on('data', (row) => {
+          const droneId = parseInt(row.droneId, 10);
+          if (this.flightData.has(droneId)) {
+            this.flightData.get(droneId)!.push(row);
+          }
+        })
+        .on('end', () => resolve())
+        .on('error', reject);
+    });
+
+    console.log(`📊 Loaded CSV data for all 25 drones. Starting playback loop.`);
+
+    this.tick();
     setInterval(() => {
-      void this.tick();
+      this.tick();
     }, intervalMs);
   }
 
-  private async tick() {
-    if (this.tickInFlight) {
-      console.warn(
-        `[${new Date().toISOString()}] Previous simulator tick still running, skipping overlapping cycle.`,
-      );
-      return;
-    }
+  private tick() {
+    const payload: TelemetryPayload = { fleet: [] };
 
+<<<<<<< Updated upstream
     this.tickInFlight = true;
     const nowMs = Date.now();
     const elapsedSec = Math.max(0.25, Math.min(10, (nowMs - this.lastTickMs) / 1000));
@@ -284,5 +278,32 @@ export class FleetManager {
         `[${new Date().toISOString()}] Dispatched ${newlyAssigned} drones across ${this.cachedHazards.length} active hazard zones.`,
       );
     }
+=======
+    for (let i = 0; i < this.drones.length; i++) {
+      const drone = this.drones[i];
+      const data = this.flightData.get(i);
+      let idx = this.tickIndices.get(i)!;
+      
+      if (data && data.length > 0) {
+        if (idx >= data.length) idx = 0; // Loop back when reaching the end of the CSV chunk
+        
+        const row = data[idx];
+        drone.feedCsvRow(row);
+        this.tickIndices.set(i, idx + 1);
+      }
+      
+      payload.fleet.push(drone.getTelemetry());
+    }
+
+    this.mqttClient.publish('climence/telemetry', JSON.stringify(payload), { qos: 1 }, (err) => {
+      if (err) {
+        console.error(`[${new Date().toISOString()}] Failed to publish MQTT telemetry. Error: ${err.message}`);
+      } else {
+        console.log(
+          `[${new Date().toISOString()}] Broadcasted CSV telemetry for ${this.drones.length} drones to MQTT broker`,
+        );
+      }
+    });
+>>>>>>> Stashed changes
   }
 }

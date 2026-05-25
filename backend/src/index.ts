@@ -7,8 +7,14 @@ import alertsRouter from './routes/alerts';
 import analyticsRouter from './routes/analytics';
 import telemetryRouter from './routes/telemetry';
 import { setupWebSocket } from './ws';
+<<<<<<< Updated upstream
+=======
+import { startOpenMeteoPolling } from './features/analytics/openMeteo';
+import { setupMqttBroker } from './mqtt';
+>>>>>>> Stashed changes
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -19,6 +25,11 @@ app.use('/api/alerts', alertsRouter);
 
 const server = createServer(app);
 setupWebSocket(server);
+<<<<<<< Updated upstream
+=======
+startOpenMeteoPolling();
+await setupMqttBroker(1883);
+>>>>>>> Stashed changes
 
 server.listen(API_PORT, () => {
   console.log(`Central Ingestion API listening on http://localhost:${API_PORT}`);

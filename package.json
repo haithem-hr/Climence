@@ -23,5 +23,9 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
+  },
+  "dependencies": {
+    "csv-parser": "^3.2.1",
+    "mqtt": "^5.15.1"
   }
 }
