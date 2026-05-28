@@ -153,7 +153,7 @@ export const DICT = {
 
   'alerts.liveMonitor': { en: 'Live Monitor', ar: 'مراقبة مباشرة' },
   'alerts.title': { en: 'Incident Response', ar: 'الاستجابة للحوادث' },
-  'alerts.subtitle': { en: 'Manage global threshold rules and dispatch autonomous units to investigate anomalies across the sensor network.', ar: 'أدر قواعد العتبات العامة وأرسل الوحدات الذاتية للتحقيق في الحالات الشاذة عبر شبكة المستشعرات.' },
+  'alerts.subtitle': { en: 'Monitor the city grid for abnormal PM2.5 pollution levels. Manage the global warning threshold to highlight critical sectors automatically.', ar: 'أدر قواعد العتبات العامة لتسليط الضوء على الحالات الشاذة عبر شبكة المستشعرات.' },
   'alerts.activeIncidents': { en: 'Active Incidents', ar: 'حوادث نشطة' },
   'alerts.critical': { en: 'Critical', ar: 'حرج' },
   'alerts.active': { en: 'Active Alerts', ar: 'تنبيهات نشطة' },
@@ -163,7 +163,7 @@ export const DICT = {
   'alerts.info': { en: 'Info', ar: 'معلومة' },
   'alerts.dispatchDrone': { en: 'Dispatch drone', ar: 'إرسال طائرة' },
   'alerts.globalThreshold': { en: 'Global Threshold', ar: 'العتبة العامة' },
-  'alerts.thresholdHelp': { en: 'Set the city-wide PM2.5 baseline. Levels exceeding this value will automatically trigger warnings and recommend drone dispatch.', ar: 'حدد خط الأساس الحضري لـ PM2.5. المستويات التي تتجاوز هذه القيمة ستفعّل التحذيرات تلقائيًا وتوصي بإرسال الطائرات.' },
+  'alerts.thresholdHelp': { en: 'Configure the city-wide PM2.5 baseline. Any sensor reporting levels above this value will instantly trigger a system warning.', ar: 'حدد خط الأساس لـ PM2.5. المستويات التي تتجاوز هذه القيمة ستفعّل التحذيرات تلقائيًا.' },
   'alerts.triggerLevel': { en: 'PM2.5 Trigger Level', ar: 'مستوى تشغيل PM2.5' },
   'alerts.apply': { en: 'Apply threshold', ar: 'تطبيق العتبة' },
   'alerts.applying': { en: 'Applying…', ar: 'جارٍ التطبيق…' },

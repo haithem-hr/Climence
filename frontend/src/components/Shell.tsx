@@ -17,7 +17,6 @@ import {
   Search,
   Settings,
   Siren,
-  Users,
   X,
   Zap,
 } from 'lucide-react';
@@ -37,7 +36,6 @@ export interface ShellProps {
   status: ConnectionStatus;
   liveAge: string;
   feedCount: number;
-  dispatchCount?: number;
   onlineSensors: number;
   totalSensors: number;
   locale: Locale;
@@ -50,8 +48,8 @@ export interface ShellProps {
   children: ReactNode;
   /** Everything rendered inside the side rail (<aside>). */
   sideContent: ReactNode;
-  currentTab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports';
-  onTabChange: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  currentTab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports';
+  onTabChange: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports') => void;
   /** Current data source mode. */
   dataSource: DataSource;
   /** Callback to toggle between live and demo. */
@@ -63,7 +61,6 @@ export function Shell({
   status,
   liveAge,
   feedCount,
-  dispatchCount = 0,
   onlineSensors,
   totalSensors,
   locale,
@@ -124,11 +121,9 @@ export function Shell({
           ? t('nav.alerts')
           : currentTab === 'sensors'
             ? t('nav.gridSensors')
-            : currentTab === 'dispatch'
-              ? t('nav.dispatch')
-              : currentTab === 'reports'
-                ? t('nav.reports')
-                : t('nav.overview');
+            : currentTab === 'reports'
+              ? t('nav.reports')
+              : t('nav.overview');
 
   const handleNavToggle = () => {
     if (typeof window !== 'undefined' && window.innerWidth <= 1024) {
@@ -240,16 +235,6 @@ export function Shell({
             <span className="count tnum">
               {onlineSensors}/{totalSensors || 0}
             </span>
-          </button>
-          <button 
-            className={`nav-item ${currentTab === 'dispatch' ? 'active' : ''}`}
-            onClick={() => onTabChange('dispatch')}
-            title={t('nav.dispatch')} 
-            data-tooltip={t('nav.dispatch')}
-          >
-            <Users size={16} />
-            <span className="nav-label">{t('nav.dispatch')}</span>
-            {dispatchCount > 0 && <span className="count tnum">{dispatchCount}</span>}
           </button>
           <button
             className={`nav-item ${currentTab === 'reports' ? 'active' : ''}`}

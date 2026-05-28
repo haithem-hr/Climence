@@ -19,7 +19,6 @@ export function EventBanner({ data }: { data: Pick<DashboardData, 't' | 'thresho
         </div>
         <div className="banner-sub">{isOverThreshold ? data.t('banner.sub.over') : data.t('banner.sub.under')}</div>
       </div>
-      <button className="banner-cta">{data.t('banner.dispatch')}</button>
     </div>
   );
 }

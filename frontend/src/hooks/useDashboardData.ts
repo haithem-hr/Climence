@@ -19,7 +19,7 @@ import {
   type TelemetryRecord,
   type TelemetrySnapshot,
 } from '@climence/shared';
-import { fetchAlertConfig, fetchHistory, updateAlertConfig, createMission, updateMission } from '../api/client';
+import { fetchAlertConfig, fetchHistory, updateAlertConfig } from '../api/client';
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from '../lib/analytics';
@@ -99,34 +99,12 @@ export interface FeedItem {
   title: string;
   meta: string;
   time: string;
-  lat: number;
-  lng: number;
+  lat?: number;
+  lng?: number;
+  uuid?: string;
 }
 
-export type ResourceType = 'drone' | 'team';
-export type MissionPriority = 'low' | 'high' | 'crit';
-export type MissionStatus = 'pending' | 'en_route' | 'on_site' | 'returning' | 'completed';
 
-export interface Mission {
-  id: string;
-  targetId: string; // Sensor uuid or Hotspot id
-  targetName: string;
-  targetCoord: { lat: number; lng: number };
-  resourceType: ResourceType;
-  priority: MissionPriority;
-  status: MissionStatus;
-  report?: string;
-  startTime: string;
-}
-
-export interface MissionConfig {
-  targetId: string;
-  targetName: string;
-  targetCoord: { lat: number; lng: number };
-  resourceType: ResourceType;
-  priority: MissionPriority;
-  notes?: string;
-}
 
 /* ═══════════════════════════ CONSTANTS ═══════════════════════════ */
 
@@ -275,7 +253,7 @@ function hotspotsFromApi(hotspots: Hotspot[], sensors: SensorPoint[], metricKey:
     const fallbackSensor = sensors[index % Math.max(1, sensors.length)];
     const metricValue = metricKey === 'pm25' ? hotspot.avg_pm25
       : fallbackSensor ? getMapMetricValue(metricKey, fallbackSensor)
-      : getMapMetricConfig(metricKey).min;
+        : getMapMetricConfig(metricKey).min;
     const aqi = pm25ToAqi(hotspot.avg_pm25);
     const band = bandForMetricValue(metricKey, metricValue);
     const trend = Math.round(((index % 3) - 1) * (4 + index * 2));
@@ -313,10 +291,10 @@ function hotspotsFromSensors(sensors: SensorPoint[], metricKey: PollutantKey): H
 /* ═══════════════════════════ THE HOOK ═══════════════════════════ */
 
 const STORAGE_KEYS = {
-  TAB:       'climence.active-tab',
-  MODE:      'climence.map-mode',
+  TAB: 'climence.active-tab',
+  MODE: 'climence.map-mode',
   POLLUTANT: 'climence.active-pollutant',
-  RANGE:     'climence.active-range',
+  RANGE: 'climence.active-range',
 };
 
 export function useDashboardData(
@@ -335,7 +313,7 @@ export function useDashboardData(
   const [mapBounds, setMapBounds] = useState<RiyadhMapBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports'>(() => 
+  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports'>(() =>
     (localStorage.getItem(STORAGE_KEYS.TAB) as any) || 'overview'
   );
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
@@ -344,7 +322,7 @@ export function useDashboardData(
   const [alertThreshold, setAlertThreshold] = useState(PM25_ALERT_THRESHOLD);
   const [alertThresholdDraft, setAlertThresholdDraft] = useState(String(PM25_ALERT_THRESHOLD));
   const [alertConfigState, setAlertConfigState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [activeMissions, setActiveMissions] = useState<Mission[]>([]);
+
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.TAB, currentTab);
@@ -367,27 +345,11 @@ export function useDashboardData(
     let cancelled = false;
     fetchAlertConfig(authToken)
       .then(config => { if (!cancelled) { setAlertThreshold(config.pm25Threshold); setAlertThresholdDraft(String(config.pm25Threshold)); } })
-      .catch(() => {});
+      .catch(() => { });
     return () => { cancelled = true; };
   }, [authToken]);
 
-  // Sync missions from snapshot
-  useEffect(() => {
-    if (snapshot.missions) {
-      const converted: Mission[] = snapshot.missions.map(r => ({
-        id: r.id,
-        targetId: r.target_id,
-        targetName: r.target_name,
-        targetCoord: { lat: r.lat, lng: r.lng },
-        resourceType: r.resource_type as any,
-        priority: r.priority as any,
-        status: r.status as any,
-        report: r.report,
-        startTime: r.start_time,
-      }));
-      setActiveMissions(converted);
-    }
-  }, [snapshot.missions]);
+
 
   const validDrones = useMemo(
     () => snapshot.drones.filter(isValidTelemetryRecord),
@@ -418,7 +380,7 @@ export function useDashboardData(
     if (!selected) return null;
     const inHotspots = hotspots.find(h => h.id === selected.id);
     if (inHotspots) return inHotspots;
-    
+
     // If it's a sensor that isn't in the top hotspots, look it up in sensors to keep values live
     if (selected.sourceUuid) {
       const source = sensors.find(s => s.uuid === selected.sourceUuid);
@@ -466,14 +428,14 @@ export function useDashboardData(
     return () => { cancelled = true; };
   }, [authToken, selectedHotspot]);
 
-  const basePm25Series = useMemo(() => { 
-    const raw = snapshot.cityTrend.map(p => p.avg_pm25); 
+  const basePm25Series = useMemo(() => {
+    const raw = snapshot.cityTrend.map(p => p.avg_pm25);
     if (raw.length > 1) {
       return raw.slice(-RANGE_SECONDS[range]);
     }
-    return seededSeries(17, 40, average(sensors.slice(0, 12).map(s => s.pm25)) || 85, 24); 
+    return seededSeries(17, 40, average(sensors.slice(0, 12).map(s => s.pm25)) || 85, 24);
   }, [snapshot.cityTrend, sensors, range]);
-  
+
   const pm25Series = useMemo(() => {
     const aqiSeries = basePm25Series.map(v => pm25ToAqi(v));
     const targetPoints = Math.min(aqiSeries.length, 120);
@@ -496,7 +458,7 @@ export function useDashboardData(
   }, [snapshot.cityTrend, sensors, range]);
 
   const pm10Series = useMemo(() => pm25Series.map(v => clamp(v * 1.18, 18, 260)), [pm25Series]);
-  
+
   const no2Series = useMemo(() => {
     const targetPoints = Math.min(baseNo2Series.length, 120);
     return resampleSeries(baseNo2Series, targetPoints);
@@ -544,18 +506,19 @@ export function useDashboardData(
 
   const feed = useMemo<FeedItem[]>(() => {
     if (snapshot.alerts.length > 0) {
-      return snapshot.alerts.slice(0, 7).map(alert => {
+      return snapshot.alerts.map(alert => {
         let severity: AlertSeverity = 'info';
         if (alert.pm25 >= effectiveAlertThreshold + 45) severity = 'crit';
         else if (alert.pm25 >= effectiveAlertThreshold) severity = 'warn';
         return {
           id: `${alert.uuid}-${alert.id}`,
           severity,
-          title: tFormat('feed.pm25Exceeded', locale, { value: Math.round(alert.pm25) }),
-          meta: `${alert.uuid.slice(0, 8)} · ${alert.state}`,
+          title: tFormat('feed.pm25Exceeded', locale, { value: `${Math.round(alert.pm25)} (AQI: ${Math.round(pm25ToAqi(alert.pm25))})` }),
+          meta: `${alert.uuid} · ${alert.lat.toFixed(4)}, ${alert.lng.toFixed(4)}`,
           time: formatAgo(alert.server_timestamp),
           lat: alert.lat,
-          lng: alert.lng
+          lng: alert.lng,
+          uuid: alert.uuid
         };
       });
     }
@@ -575,7 +538,7 @@ export function useDashboardData(
   const activeMetricConfig = useMemo(() => getMapMetricConfig(pollutant), [pollutant]);
   const drawerHistorySeries = selectedHotspot?.sourceUuid && historySourceUuid === selectedHotspot.sourceUuid ? historySeries : [];
   const thresholdExceededBy = Math.max(0, pm25Now - effectiveAlertThreshold);
-  const canManageAlertSettings = authUser?.role === UserRole.ADMINISTRATOR;
+  const canManageAlertSettings = authUser?.role === UserRole.ADMINISTRATOR || authUser?.role === UserRole.ANALYST;
 
   const handlePickSensor = useCallback((sensor: RiyadhMapSensor) => {
     const source = sensors.find(item => item.uuid === sensor.uuid);
@@ -618,47 +581,7 @@ export function useDashboardData(
     trendLabel, generatedBy: authUser ? `${authUser.name} (${authUser.role})` : 'Unknown',
   }), [authUser, cityAqi, effectiveAlertThreshold, forecast, hotspots, onlineSensors, sensors.length, snapshot, sources, trendLabel]);
 
-  const handleDispatch = useCallback((config: MissionConfig) => {
-    if (!authToken) return;
-    const newMission: Mission = {
-      ...config,
-      id: `m-${Date.now()}`,
-      status: 'en_route',
-      startTime: new Date().toISOString(),
-    };
-    
-    // Optimistic update
-    setActiveMissions(prev => [newMission, ...prev]);
-    
-    createMission({
-      id: newMission.id,
-      targetId: newMission.targetId,
-      targetName: newMission.targetName,
-      lat: newMission.targetCoord.lat,
-      lng: newMission.targetCoord.lng,
-      resourceType: newMission.resourceType,
-      priority: newMission.priority,
-      status: newMission.status
-    }, authToken).catch(err => {
-      console.error('Failed to create mission:', err);
-      // Rollback if needed, but snapshot will eventually fix it
-    });
 
-    // Automate "on_site" transition for demo purposes if not immediately handled by backend
-    setTimeout(() => {
-      updateMission(newMission.id, { status: 'on_site' }, authToken).catch(() => {});
-    }, 5000);
-  }, [authToken]);
-
-  const handleCompleteMission = useCallback((missionId: string, report?: string) => {
-    if (!authToken) return;
-    
-    // Optimistic update
-    setActiveMissions(prev => prev.map(m => m.id === missionId ? { ...m, status: 'completed', report } : m));
-    
-    updateMission(missionId, { status: 'completed', report }, authToken)
-      .catch(err => console.error('Failed to complete mission:', err));
-  }, [authToken]);
 
   return {
     // layout
@@ -683,8 +606,7 @@ export function useDashboardData(
     handleSaveAlertThreshold, canManageAlertSettings, thresholdExceededBy,
     // history drawer
     drawerHistorySeries, historySeries,
-    // dispatch
-    activeMissions, handleDispatch, handleCompleteMission,
+
     // meta
     liveAge, status, t, reportPayload,
   };

@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import type { DashboardData } from '../../hooks/useDashboardData';
-import { AlertTriangle, Bell, Activity, Settings, Siren, Crosshair, Wind, Zap } from 'lucide-react';
-import { DispatchDialog } from './DispatchDialog';
+import { AlertTriangle, Bell, Activity, Settings, Siren, Wind, Zap } from 'lucide-react';
 
 export function AlertsView({ data: d }: { data: DashboardData }) {
-  const [dispatchTarget, setDispatchTarget] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null);
   return (
     <div className="p-6 h-full overflow-y-auto bg-[var(--bg-0)] animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out fill-mode-both">
       <div className="flex flex-col gap-8 max-w-[1400px]">
@@ -89,13 +86,20 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                     </div>
 
                     <div className="shrink-0 pt-2 sm:pt-0">
-                      <button 
-                        onClick={() => setDispatchTarget({ id: item.id, name: item.title, lat: item.lat, lng: item.lng })}
-                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[var(--bg-1)] hover:bg-[var(--brand)] text-[var(--ink-1)] hover:text-white border border-[var(--line)] hover:border-[var(--brand)] text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 group/btn"
-                      >
-                        <Crosshair size={16} className="group-hover/btn:rotate-90 transition-transform duration-500" />
-                        <span>{d.t('alerts.dispatchDrone')}</span>
-                      </button>
+                      {item.uuid && (
+                        <button
+                          onClick={() => {
+                            const target = d.sensors.find(s => s.uuid === item.uuid);
+                            if (target) {
+                              d.handlePickSensor(target);
+                              d.setCurrentTab('livemap');
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--brand)] text-white shadow-sm hover:opacity-90 transition-all"
+                        >
+                          {d.t('btn.seeOnMap')}
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))
@@ -170,14 +174,6 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
 
         </div>
 
-        <DispatchDialog
-          isOpen={!!dispatchTarget}
-          onClose={() => setDispatchTarget(null)}
-          onConfirm={d.handleDispatch}
-          targetId={dispatchTarget?.id ?? ''}
-          targetName={dispatchTarget?.name ?? ''}
-          targetCoord={{ lat: dispatchTarget?.lat ?? 0, lng: dispatchTarget?.lng ?? 0 }}
-        />
       </div>
     </div>
   );

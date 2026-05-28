@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Filter, Pause, Play, Save, Trash2 } from 'lucide-react';
 import type { HeatmapPoint } from '../map/HeatmapLayer';
-import { DispatchDialog } from './DispatchDialog';
 import {
   RiyadhGoogleMap,
   type RiyadhMapCluster,
@@ -58,7 +57,6 @@ export function LiveMapView({ data }: LiveMapViewProps) {
     return parseSavedViewPresets(window.localStorage.getItem(LIVE_MAP_PRESETS_KEY));
   });
   const [localFocusTarget, setLocalFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number } | null>(null);
-  const [dispatchTarget, setDispatchTarget] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const nextFrame: ReplayFrame = {
@@ -120,9 +118,13 @@ export function LiveMapView({ data }: LiveMapViewProps) {
           case 'battery':
             return sensor.battery;
           case 'co2':
+            return sensor.co2;
           case 'no2':
+            return sensor.no2;
           case 'temperature':
+            return sensor.temperature;
           case 'humidity':
+            return sensor.humidity;
           default:
             return sensor.pm25;
         }
@@ -309,8 +311,6 @@ export function LiveMapView({ data }: LiveMapViewProps) {
           focusTarget={activeFocusTarget}
           onViewportChange={data.handleMapViewportChange}
           onPickSensor={data.handlePickSensor}
-          activeMissions={data.activeMissions}
-          onDispatch={setDispatchTarget}
         />
 
         <div className="live-map-legend glass">
@@ -333,15 +333,6 @@ export function LiveMapView({ data }: LiveMapViewProps) {
           </div>
         </div>
       </div>
-
-      <DispatchDialog
-        isOpen={!!dispatchTarget}
-        onClose={() => setDispatchTarget(null)}
-        onConfirm={data.handleDispatch}
-        targetId={dispatchTarget?.id ?? ''}
-        targetName={dispatchTarget?.name ?? ''}
-        targetCoord={{ lat: dispatchTarget?.lat ?? 0, lng: dispatchTarget?.lng ?? 0 }}
-      />
     </div>
   );
 }

@@ -22,7 +22,6 @@ import { AnalyticsView } from './components/panels/AnalyticsView';
 import { LiveMapView } from './components/panels/LiveMapView';
 import { AlertsView } from './components/panels/AlertsView';
 import { SensorsView } from './components/panels/SensorsView';
-import { DispatchView } from './components/panels/DispatchView';
 import { ReportsView } from './components/panels/ReportsView';
 
 export type DataSource = 'live' | 'demo';
@@ -151,7 +150,6 @@ export default function App() {
         status={status}
         liveAge={data.liveAge}
         feedCount={data.feed.length}
-        dispatchCount={data.activeMissions.filter(m => m.status !== 'completed').length}
         onlineSensors={data.onlineSensors}
         totalSensors={data.sensors.length}
         locale={locale}
@@ -170,7 +168,6 @@ export default function App() {
         {data.currentTab === 'analytics' && <AnalyticsView authToken={authToken} data={data} />}
         {data.currentTab === 'alerts' && <AlertsView data={data} />}
         {data.currentTab === 'sensors' && <SensorsView data={data} />}
-        {data.currentTab === 'dispatch' && <DispatchView data={data} />}
         {data.currentTab === 'reports' && <ReportsView data={data} locale={locale} />}
       </Shell>
 

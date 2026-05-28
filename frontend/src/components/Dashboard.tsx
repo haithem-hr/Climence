@@ -20,7 +20,6 @@ import {
 import { AQI_BANDS, aqiBandFor } from '@climence/shared';
 import { useOpenMeteoAirQuality } from '../hooks/useOpenMeteoAirQuality';
 import { RiyadhGoogleMap } from './map/RiyadhGoogleMap';
-import { DispatchDialog } from './panels/DispatchDialog';
 import { AlertSettingsPanel } from './panels/AlertSettingsPanel';
 import { EventBanner } from './panels/EventBanner';
 import { FeedPanel } from './panels/FeedPanel';
@@ -136,7 +135,6 @@ function HotspotDrawer({
   historySeries,
   pollutantStats,
   onClose,
-  onDispatch,
   onNavigate,
   onOpenReportModal,
 }: {
@@ -144,8 +142,7 @@ function HotspotDrawer({
   historySeries: number[];
   pollutantStats: PollutantStat[];
   onClose: () => void;
-  onDispatch: (target: { id: string; name: string; lat: number; lng: number }) => void;
-  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports') => void;
   onOpenReportModal?: () => void;
 }) {
   const { data: omData } = useOpenMeteoAirQuality(hotspot?.lat, hotspot?.lng);
@@ -198,8 +195,7 @@ function HotspotDrawer({
           ))}
         </div>
         
-        <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <button className="btn primary" style={{ justifyContent: 'center' }} onClick={() => onDispatch({ id: hotspot.id, name: hotspot.name, lat: hotspot.lat, lng: hotspot.lng })}><Siren size={13} />Dispatch team</button>
+        <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
           <button
             className="btn"
             style={{ justifyContent: 'center' }}
@@ -225,7 +221,7 @@ interface DashboardProps {
   data: DashboardData;
   /** Which portion to render — 'main' for center area, 'side' for sidebar. */
   position: 'main' | 'side';
-  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports') => void;
   onOpenReportModal?: () => void;
 }
 
@@ -242,7 +238,7 @@ function MainContent({
   onOpenReportModal,
 }: {
   d: DashboardData;
-  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'dispatch' | 'reports') => void;
+  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports') => void;
   onOpenReportModal?: () => void;
 }) {
   const statusLabel = d.status === 'open' ? 'live' : d.status === 'connecting' ? 'connecting' : 'reconnecting';
@@ -251,7 +247,6 @@ function MainContent({
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('climence.kpi-collapsed') === '1';
   });
-  const [dispatchTarget, setDispatchTarget] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -326,7 +321,7 @@ function MainContent({
       </div>
 
       <div className="stage">
-        <RiyadhGoogleMap mode={d.mode} sensors={d.sensors} hotspots={d.mapHotspots} heatmapPoints={d.mapHeatmapPoints} zoomPreset={d.zoomPreset} focusTarget={d.mapFocusTarget} onViewportChange={d.handleMapViewportChange} onPickSensor={d.handlePickSensor} activeMissions={d.activeMissions} onDispatch={setDispatchTarget} />
+        <RiyadhGoogleMap mode={d.mode} sensors={d.sensors} hotspots={d.mapHotspots} heatmapPoints={d.mapHeatmapPoints} zoomPreset={d.zoomPreset} focusTarget={d.mapFocusTarget} onViewportChange={d.handleMapViewportChange} onPickSensor={d.handlePickSensor} />
 
         <div className="map-panel-tl">
           <div className="pollutants">
@@ -380,18 +375,8 @@ function MainContent({
           historySeries={d.drawerHistorySeries}
           pollutantStats={d.pollutantStats}
           onClose={() => d.setSelected(null)}
-          onDispatch={setDispatchTarget}
           onNavigate={onNavigate}
           onOpenReportModal={onOpenReportModal}
-        />
-
-        <DispatchDialog
-          isOpen={!!dispatchTarget}
-          onClose={() => setDispatchTarget(null)}
-          onConfirm={d.handleDispatch}
-          targetId={dispatchTarget?.id ?? ''}
-          targetName={dispatchTarget?.name ?? ''}
-          targetCoord={{ lat: dispatchTarget?.lat ?? 0, lng: dispatchTarget?.lng ?? 0 }}
         />
       </div>
     </>

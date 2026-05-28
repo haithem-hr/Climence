@@ -1,13 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { divIcon } from 'leaflet';
-import { Send } from 'lucide-react';
 import { Circle, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { RIYADH_BOUNDS, RIYADH_CENTER, type AqiBandKey, type DroneState } from '@climence/shared';
 import '../../lib/leaflet-icons';
 import { HeatmapLayer, type HeatmapPoint } from './HeatmapLayer';
 import { buildSensorMarkerHtml, describeDroneState } from './markerState';
 import { useOpenMeteoAirQuality } from '../../hooks/useOpenMeteoAirQuality';
-import type { Mission } from '../../hooks/useDashboardData';
 
 export type RiyadhMapMode = 'hardware' | 'heatmap';
 export type RiyadhZoomPreset = 'city' | 'sector' | 'zone';
@@ -37,6 +35,10 @@ export interface RiyadhMapSensor {
   lng: number;
   aqi: number;
   pm25: number;
+  co2: number;
+  no2: number;
+  temperature: number;
+  humidity: number;
   battery: number;
   band: AqiBandKey;
   droneState: DroneState;
@@ -65,8 +67,6 @@ interface Props {
   focusTarget?: { lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null;
   onViewportChange?: (viewport: { bounds: RiyadhMapBounds; zoom: number }) => void;
   onPickSensor: (sensor: RiyadhMapSensor) => void;
-  onDispatch?: (target: { id: string; name: string; lat: number; lng: number }) => void;
-  activeMissions?: Mission[];
 }
 
 const BAND_COLOR: Record<AqiBandKey, string> = {
@@ -140,8 +140,6 @@ export function RiyadhGoogleMap({
   focusTarget = null,
   onViewportChange,
   onPickSensor,
-  onDispatch,
-  activeMissions,
 }: Props) {
   const sortedSensors = useMemo(
     () => [...sensors].sort((a, b) => (b.aqi - aqiFallback(b)) - (a.aqi - aqiFallback(a))),
@@ -293,26 +291,11 @@ export function RiyadhGoogleMap({
                 <div className="map-sensor-tooltip-meta">{describeDroneState(sensor)}</div>
               </Tooltip>
               <Popup>
-                <SensorPopupContent sensor={sensor} onDispatch={onDispatch} />
+                <SensorPopupContent sensor={sensor} />
               </Popup>
             </Marker>
           );
         })}
-
-        {activeMissions?.filter(m => m.status !== 'completed').map(mission => (
-          <Circle
-            key={`mission-${mission.id}`}
-            center={[mission.targetCoord.lat, mission.targetCoord.lng]}
-            radius={180}
-            pathOptions={{
-              color: 'var(--brand)',
-              fillColor: 'var(--brand)',
-              fillOpacity: 0.08,
-              weight: 2,
-              dashArray: '6, 10',
-            }}
-          />
-        ))}
 
       </MapContainer>
     </div>
@@ -323,9 +306,9 @@ function aqiFallback(sensor: RiyadhMapSensor) {
   return sensor.status === 'offline' ? 30 : 0;
 }
 
-function SensorPopupContent({ sensor, onDispatch }: { sensor: RiyadhMapSensor; onDispatch?: (target: { id: string; name: string; lat: number; lng: number }) => void }) {
+function SensorPopupContent({ sensor }: { sensor: RiyadhMapSensor }) {
   const { data: omData } = useOpenMeteoAirQuality(sensor.lat, sensor.lng);
-  
+
   return (
     <div style={{ minWidth: 200 }}>
       <strong style={{ fontSize: 14 }}>{sensor.label}</strong>
@@ -333,7 +316,7 @@ function SensorPopupContent({ sensor, onDispatch }: { sensor: RiyadhMapSensor; o
         <div style={{ fontWeight: 600 }}>AQI {Math.round(sensor.aqi)} · PM2.5 {sensor.pm25.toFixed(1)} µg/m³</div>
         <div style={{ color: 'var(--ink-3)' }}>{describeDroneState(sensor)}</div>
       </div>
-      
+
       {omData?.current ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11 }}>
           <div>PM10: {omData.current.pm10}</div>
@@ -347,33 +330,6 @@ function SensorPopupContent({ sensor, onDispatch }: { sensor: RiyadhMapSensor; o
         </div>
       ) : (
         <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>Loading atmospheric data...</div>
-      )}
-
-      {onDispatch && (
-        <button
-          onClick={() => onDispatch({ id: sensor.uuid, name: sensor.label, lat: sensor.lat, lng: sensor.lng })}
-          style={{
-            marginTop: 12,
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: 8,
-            border: 'none',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            color: 'var(--danger)',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            transition: 'all 0.2s'
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)')}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)')}
-        >
-          <Send size={12} /> Dispatch Unit
-        </button>
       )}
     </div>
   );

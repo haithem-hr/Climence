@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { Activity, Battery, Cpu, MapPin, Radio, Send, X, Wind } from 'lucide-react';
+import { Activity, Battery, Cpu, MapPin, Radio, X, Wind } from 'lucide-react';
 import type { DashboardData } from '../../hooks/useDashboardData';
 import { aqiBandFor, pm25ToAqi } from '@climence/shared';
 import { useOpenMeteoAirQuality } from '../../hooks/useOpenMeteoAirQuality';
 import type { RiyadhMapSensor } from '../map/RiyadhGoogleMap';
-import { DispatchDialog } from './DispatchDialog';
 
 export function SensorsView({ data: d }: { data: DashboardData }) {
-  const [dispatchTarget, setDispatchTarget] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null);
   const [detailTarget, setDetailTarget] = useState<RiyadhMapSensor | null>(null);
 
   return (
@@ -53,32 +51,22 @@ export function SensorsView({ data: d }: { data: DashboardData }) {
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {d.sensors.map((sensor, i) => (
-            <SensorCard key={sensor.uuid} sensor={sensor} i={i} d={d} onDispatch={setDispatchTarget} onShowDetail={setDetailTarget} />
+            <SensorCard key={sensor.uuid} sensor={sensor} i={i} d={d} onShowDetail={setDetailTarget} />
           ))}
         </div>
-
-        <DispatchDialog
-          isOpen={!!dispatchTarget}
-          onClose={() => setDispatchTarget(null)}
-          onConfirm={d.handleDispatch}
-          targetId={dispatchTarget?.id ?? ''}
-          targetName={dispatchTarget?.name ?? ''}
-          targetCoord={{ lat: dispatchTarget?.lat ?? 0, lng: dispatchTarget?.lng ?? 0 }}
-        />
 
         <SensorDetailDialog
           isOpen={!!detailTarget}
           onClose={() => setDetailTarget(null)}
           sensor={detailTarget}
           d={d}
-          onDispatch={setDispatchTarget}
         />
       </div>
     </div>
   );
 }
 
-function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: RiyadhMapSensor; i: number; d: DashboardData; onDispatch: (target: { id: string; name: string; lat: number; lng: number }) => void; onShowDetail: (sensor: RiyadhMapSensor) => void }) {
+function SensorCard({ sensor, i, d, onShowDetail }: { sensor: RiyadhMapSensor; i: number; d: DashboardData; onShowDetail: (sensor: RiyadhMapSensor) => void }) {
   const isOffline = sensor.status === 'offline';
   const aqiBand = aqiBandFor(sensor.aqi || pm25ToAqi(sensor.pm25));
   // const [expanded, setExpanded] = useState(false); // REMOVED
@@ -130,25 +118,7 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
             <Activity size={14} /> {d.t('sensors.seeDetails')}
           </button>
           <div className="flex gap-2">
-            <button
-              onClick={() => onDispatch({ id: sensor.uuid, name: sensor.label, lat: sensor.lat, lng: sensor.lng })}
-              style={{
-                backgroundColor: 'var(--danger)',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px oklch(from var(--danger) l c h / 0.25)',
-                transition: 'all 0.2s'
-              }}
-              className="hover:opacity-90"
-            >
-              <Send size={14} /> {d.t('banner.dispatch')}
-            </button>
+
             <button
               onClick={() => {
                 d.handlePickSensor(sensor);
@@ -175,7 +145,7 @@ function SensorCard({ sensor, i, d, onDispatch, onShowDetail }: { sensor: Riyadh
   );
 }
 
-function SensorDetailDialog({ isOpen, onClose, sensor, d, onDispatch }: { isOpen: boolean; onClose: () => void; sensor: RiyadhMapSensor | null; d: DashboardData; onDispatch: (target: { id: string; name: string; lat: number; lng: number }) => void }) {
+function SensorDetailDialog({ isOpen, onClose, sensor, d }: { isOpen: boolean; onClose: () => void; sensor: RiyadhMapSensor | null; d: DashboardData }) {
   const { data: omData } = useOpenMeteoAirQuality(sensor?.lat || 0, sensor?.lng || 0);
   if (!isOpen || !sensor) return null;
 
@@ -272,30 +242,7 @@ function SensorDetailDialog({ isOpen, onClose, sensor, d, onDispatch }: { isOpen
 
           {/* Action Footer */}
           <div className="flex gap-3 pt-4 border-t border-[var(--line)]">
-            <button
-              onClick={() => {
-                onDispatch({ id: sensor.uuid, name: sensor.label, lat: sensor.lat, lng: sensor.lng });
-                onClose();
-              }}
-              style={{
-                backgroundColor: 'var(--danger)',
-                color: 'white',
-                padding: '16px',
-                borderRadius: '16px',
-                fontSize: '14px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                flex: 1,
-                boxShadow: '0 8px 20px oklch(from var(--danger) l c h / 0.25)',
-                transition: 'all 0.2s'
-              }}
-              className="hover:opacity-90 active:scale-[0.98]"
-            >
-              <Send size={18} /> Deploy Mission
-            </button>
+
             <button
               onClick={() => {
                 d.handlePickSensor(sensor);

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import L from 'leaflet';
-import 'leaflet.heat';
 import { useMap } from 'react-leaflet';
 import type { TelemetryRecord } from '@climence/shared';
 
@@ -51,6 +50,8 @@ export function HeatmapLayer({
     if (heatData.length === 0) return;
 
     const api = L as unknown as HeatLayerApi;
+    if (!api.heatLayer) return;
+
     const heatLayer = api
       .heatLayer(heatData, {
         radius,

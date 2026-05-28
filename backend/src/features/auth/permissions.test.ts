@@ -15,12 +15,12 @@ describe('auth permissions', () => {
     assert.equal(permissions.canExportReports, false);
   });
 
-  it('allows analysts to ingest telemetry and manage alert lifecycle, not thresholds', () => {
+  it('allows analysts to ingest telemetry and manage alert lifecycle and thresholds', () => {
     const permissions = getPermissionsForRole(UserRole.ANALYST);
 
     assert.equal(permissions.canIngestTelemetry, true);
     assert.equal(permissions.canManageAlerts, true);
-    assert.equal(permissions.canManageAlertThresholds, false);
+    assert.equal(permissions.canManageAlertThresholds, true);
   });
 
   it('maps permissions to the roles accepted by route guards', () => {
@@ -35,6 +35,7 @@ describe('auth permissions', () => {
     ]);
     assert.deepEqual(rolesForPermission('canManageAlertThresholds'), [
       UserRole.ADMINISTRATOR,
+      UserRole.ANALYST,
     ]);
   });
 });

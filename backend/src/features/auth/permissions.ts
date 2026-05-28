@@ -24,7 +24,7 @@ export const ROLE_PERMISSIONS: Record<UserRoleType, AuthPermissions> = {
     canViewAlerts: true,
     canIngestTelemetry: true,
     canManageAlerts: true,
-    canManageAlertThresholds: false,
+    canManageAlertThresholds: true,
     canExportReports: true,
     canManageSensors: false,
   },

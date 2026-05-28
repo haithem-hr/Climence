@@ -162,16 +162,16 @@ describe('route RBAC', () => {
     assert.equal(analyst.nextCalled, true);
   });
 
-  it('limits alert threshold changes to administrators', () => {
+  it('limits alert threshold changes to administrators and analysts', () => {
     const allowedRoles = rolesForPermission('canManageAlertThresholds');
 
-    for (const user of [USERS.viewer, USERS.analyst]) {
-      const forbidden = runRequireRole(user, allowedRoles);
-      assert.equal(forbidden.nextCalled, false);
-      assert.equal(forbidden.res.statusCode, 403);
-    }
+    const forbidden = runRequireRole(USERS.viewer, allowedRoles);
+    assert.equal(forbidden.nextCalled, false);
+    assert.equal(forbidden.res.statusCode, 403);
 
-    const admin = runRequireRole(USERS.admin, allowedRoles);
-    assert.equal(admin.nextCalled, true);
+    for (const user of [USERS.admin, USERS.analyst]) {
+      const allowed = runRequireRole(user, allowedRoles);
+      assert.equal(allowed.nextCalled, true);
+    }
   });
 });

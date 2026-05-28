@@ -26,6 +26,8 @@ export class DroneDevice {
   public feedCsvRow(row: any) {
     this.currentLat = parseFloat(row.latitude);
     this.currentLng = parseFloat(row.longitude);
+    
+    // Use exact values from CSV without additional scaling or noise
     this.pm25 = parseFloat(row.pm25);
     this.co2 = parseFloat(row.co2);
     this.no2 = parseFloat(row.no2);
