@@ -2,7 +2,6 @@ import { type ReactNode, useEffect, useState } from 'react';
 import {
   BarChart3,
   Bell,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -10,12 +9,10 @@ import {
   FlaskConical,
   Home,
   Languages,
-  Layers,
   Map as MapIcon,
   Menu,
   Radio,
   Search,
-  Settings,
   Siren,
   X,
   Zap,
@@ -23,6 +20,7 @@ import {
 import { UserRole, type AuthUser } from '@climence/shared';
 import type { DataSource } from '../App';
 import type { ConnectionStatus } from '../hooks/useLiveTelemetry';
+import type { FeedItem } from '../hooks/useDashboardData';
 import { translate, type DictKey, type Locale } from '../lib/i18n';
 import climenceLogo from '../assets/climence-logo.png';
 
@@ -36,6 +34,7 @@ export interface ShellProps {
   status: ConnectionStatus;
   liveAge: string;
   feedCount: number;
+  feed: FeedItem[];
   onlineSensors: number;
   totalSensors: number;
   locale: Locale;
@@ -61,6 +60,7 @@ export function Shell({
   status,
   liveAge,
   feedCount,
+  feed,
   onlineSensors,
   totalSensors,
   locale,
@@ -78,6 +78,7 @@ export function Shell({
   const t = (key: DictKey) => translate(key, locale);
   const statusMeta = STATUS_META[status];
   const [navOpen, setNavOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('climence.nav-collapsed') === '1';
@@ -156,7 +157,7 @@ export function Shell({
             <img src={climenceLogo} alt="Climence logo" className="brand-logo" />
           </div>
           <div className="brand-copy">
-            <div className="brand-name">Climence</div>
+            <div className="brand-name">{t('app.brand.name')}</div>
             <div className="brand-sub">{t('app.brand.sub')}</div>
           </div>
           <button
@@ -227,11 +228,11 @@ export function Shell({
           <button
             className={`nav-item ${currentTab === 'sensors' ? 'active' : ''}`}
             onClick={() => onTabChange('sensors')}
-            title="Grid Sensors"
-            data-tooltip="Grid Sensors"
+            title={t('nav.gridSensors')}
+            data-tooltip={t('nav.gridSensors')}
           >
             <Radio size={16} />
-            <span className="nav-label">Grid Sensors</span>
+            <span className="nav-label">{t('nav.gridSensors')}</span>
             <span className="count tnum">
               {onlineSensors}/{totalSensors || 0}
             </span>
@@ -248,15 +249,7 @@ export function Shell({
         </div>
 
         <div className="nav-section">
-          <div className="nav-section-title">{t('nav.system')}</div>
-          <button className="nav-item" title={t('nav.integrations')} data-tooltip={t('nav.integrations')}>
-            <Layers size={16} />
-            <span className="nav-label">{t('nav.integrations')}</span>
-          </button>
-          <button className="nav-item" title={t('nav.settings')} data-tooltip={t('nav.settings')}>
-            <Settings size={16} />
-            <span className="nav-label">{t('nav.settings')}</span>
-          </button>
+          {/* System section removed per simplified UI requirements */}
         </div>
 
         <div className="nav-footer">
@@ -295,10 +288,9 @@ export function Shell({
         {/* ── Data-source toggle ── */}
         <button
           id="data-source-toggle"
-          className={`ds-toggle ${dataSource === 'demo' ? 'ds-toggle--demo' : 'ds-toggle--live'}`}
+          className={`ds-toggle ${dataSource === 'stationary' ? 'ds-toggle--demo' : 'ds-toggle--live'}`}
           onClick={onToggleDataSource}
           title={dataSource === 'live' ? t('app.switchToDemo') : t('app.switchToLive')}
-          aria-pressed={dataSource === 'demo'}
         >
           <span className="ds-toggle-track">
             <span className="ds-toggle-thumb" />
@@ -313,7 +305,7 @@ export function Shell({
           </span>
         </button>
 
-        {dataSource === 'demo' && (
+        {dataSource === 'stationary' && (
           <span className="topbar-demo-badge" title={t('app.demo.title')}>
             {t('app.demo.badge')}
           </span>
@@ -332,13 +324,63 @@ export function Shell({
         <button className="icon-btn desktop-only" onClick={onToggleRtl} title={t('app.toggleDirection')}>
           <Languages size={15} />
         </button>
-        <button className="icon-btn desktop-only" title={t('app.calendar')}>
-          <Calendar size={15} />
-        </button>
-        <button className="icon-btn" title={t('app.notifications')}>
-          <Bell size={15} />
-          <span className="badge tnum">{feedCount}</span>
-        </button>
+        <div className="notif">
+          <button
+            className="icon-btn"
+            title={t('app.notifications')}
+            aria-haspopup="dialog"
+            onClick={() => setNotificationsOpen(v => !v)}
+          >
+            <Bell size={15} />
+            <span className="badge tnum">{feedCount}</span>
+          </button>
+
+          {notificationsOpen && (
+            <div className="notif-menu" role="dialog" aria-label={t('app.notifications')}>
+              <div className="notif-head">
+                <div className="notif-title">{t('app.notifications')}</div>
+                <button className="icon-btn" onClick={() => setNotificationsOpen(false)} aria-label={t('btn.close')}>
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="notif-list">
+                {feed.length === 0 ? (
+                  <div className="notif-empty">{t('panel.feed.empty')}</div>
+                ) : (
+                  <div className="notif-items">
+                    {feed.slice(0, 6).map(item => (
+                      <button
+                        key={item.id}
+                        className={`notif-item notif-item--${item.severity}`}
+                        onClick={() => {
+                          onTabChange('alerts');
+                          setNotificationsOpen(false);
+                        }}
+                        title={item.title}
+                      >
+                        <div className="notif-item-row">
+                          <span className="notif-dot" />
+                          <span className="notif-item-title">{item.title}</span>
+                          <span className="notif-item-time mono">{item.time}</span>
+                        </div>
+                        <div className="notif-item-meta">{item.meta}</div>
+                      </button>
+                    ))}
+                    <button
+                      className="notif-show-all"
+                      onClick={() => {
+                        onTabChange('alerts');
+                        setNotificationsOpen(false);
+                      }}
+                    >
+                      {t('btn.viewDetails')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <button className="btn primary desktop-only" onClick={onOpenReportModal}>
           <Download size={13} />
           {t('app.export')}

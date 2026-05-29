@@ -3,6 +3,7 @@ import { createServer } from 'node:net';
 import { insertFleet } from './db/queries';
 import { validateTelemetryPayload } from './features/telemetry/validation';
 import { broadcastSnapshot } from './ws';
+import { logger } from './lib/logger';
 
 export async function setupMqttBroker(port = 1883) {
   const aedes = await Aedes.createBroker();
@@ -33,15 +34,15 @@ export async function setupMqttBroker(port = 1883) {
 
         insertFleet(validation.payload.fleet);
         broadcastSnapshot();
-        console.log(`[MQTT] [${new Date().toISOString()}] Ingested telemetry via MQTT for ${validation.payload.fleet.length} drones.`);
+        logger.info('[mqtt] telemetry ingested', { clientId: client.id, drones: validation.payload.fleet.length });
       } catch (err) {
-        console.error(`[MQTT] Error processing telemetry from ${client.id}:`, err);
+        logger.error('[mqtt] error processing telemetry', { clientId: client.id, err: String(err) });
       }
     }
   });
 
   server.listen(port, () => {
-    console.log(`📡 Embedded MQTT Broker listening on port ${port}`);
+    logger.info('Embedded MQTT Broker listening', { port });
   });
 
   return server;

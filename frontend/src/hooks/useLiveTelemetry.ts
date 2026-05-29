@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  API_BASE_URL,
-  WS_PATH,
-  type ServerMessage,
-  type TelemetrySnapshot,
-} from '@climence/shared';
+import { type ServerMessage, type TelemetrySnapshot } from '@climence/shared';
+import { wsUrlForToken } from '../lib/runtime-config';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting';
 
@@ -20,10 +16,7 @@ const EMPTY_SNAPSHOT: TelemetrySnapshot = {
 const INITIAL_RETRY_MS = 1000;
 const MAX_RETRY_MS = 30000;
 
-function wsUrlForToken(token: string) {
-  const baseUrl = `${API_BASE_URL.replace(/^http/, 'ws')}${WS_PATH}`;
-  return `${baseUrl}?token=${encodeURIComponent(token)}`;
-}
+
 
 export function useLiveTelemetry(token: string | null) {
   const [snapshot, setSnapshot] = useState<TelemetrySnapshot>(EMPTY_SNAPSHOT);

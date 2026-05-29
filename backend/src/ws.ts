@@ -4,9 +4,11 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { WS_PATH, type ServerMessage } from '@climence/shared';
 import { computeSnapshot } from './db/queries';
 import { verifyAuthToken } from './features/auth/token';
+import { logger } from './lib/logger';
 
 let wss: WebSocketServer | null = null;
-const AUTH_BYPASS_ENABLED = process.env.CLIMENCE_AUTH_BYPASS !== '0';
+// Keep semantics consistent with requireAuth(): only bypass when explicitly enabled.
+const AUTH_BYPASS_ENABLED = process.env.CLIMENCE_AUTH_BYPASS === '1';
 
 export function setupWebSocket(server: HttpServer) {
   wss = new WebSocketServer({ server, path: WS_PATH });
@@ -23,12 +25,12 @@ export function setupWebSocket(server: HttpServer) {
       return;
     }
 
-    console.log(`[ws] client connected (total: ${wss?.clients.size ?? 0})`);
+  logger.info('[ws] client connected', { total: wss?.clients.size ?? 0 });
     // Hydrate the new client with the current snapshot immediately.
     sendSnapshot(socket);
 
     socket.on('close', () => {
-      console.log(`[ws] client disconnected (total: ${wss?.clients.size ?? 0})`);
+      logger.info('[ws] client disconnected', { total: wss?.clients.size ?? 0 });
     });
   });
 

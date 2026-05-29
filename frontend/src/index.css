@@ -40,6 +40,18 @@
   --side-collapsed-width: 64px;
 }
 
+/* ReportsView (on-demand export) helpers */
+.report-format-icon {
+  background: var(--bg-2);
+  color: var(--ink-3);
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.report-format-icon--active {
+  background: var(--brand);
+  color: white;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -714,6 +726,131 @@ html[dir='rtl'] .nav-item .count {
   padding: 1px 5px;
   border-radius: 8px;
   border: 2px solid var(--bg-0);
+}
+
+/* Notifications dropdown */
+.notif {
+  position: relative;
+}
+
+.notif-menu {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  width: min(360px, calc(100vw - 24px));
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 20px 45px -18px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  z-index: 2100;
+}
+
+html[dir='rtl'] .notif-menu {
+  right: auto;
+  left: 0;
+}
+
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-1);
+}
+
+.notif-title {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.notif-list {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.notif-empty {
+  padding: 18px 14px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.notif-items {
+  display: grid;
+}
+
+.notif-item {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.notif-item:hover {
+  background: var(--bg-1);
+}
+
+.notif-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notif-item-title {
+  flex: 1;
+  font-weight: 700;
+  color: var(--ink-1);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-item-time {
+  font-size: 11px;
+  color: var(--ink-3);
+  flex: none;
+}
+
+.notif-item-meta {
+  margin-left: 20px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.notif-item--crit .notif-dot { background: var(--danger); }
+.notif-item--warn .notif-dot { background: var(--warn); }
+.notif-item--info .notif-dot { background: var(--brand); }
+.notif-item--ok .notif-dot { background: var(--ok); }
+
+.notif-show-all {
+  padding: 12px 14px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+  background: var(--bg-1);
+}
+
+.notif-show-all:hover {
+  filter: brightness(0.98);
 }
 
 .seg {
@@ -3512,6 +3649,21 @@ html[dir='rtl'] .drawer {
 
 /* ─────────── ≤ 760px — stack KPIs ─────────── */
 @media (max-width: 760px) {
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 12px;
+  }
+
+  .live {
+    order: 3;
+    width: 100%;
+  }
+
+  .search {
+    order: 4;
+  }
+
   .kpi-strip {
     grid-template-columns: 1fr;
   }
@@ -4048,6 +4200,17 @@ html[dir='rtl'] .drawer {
   padding: 32px;
   display: grid;
   gap: 40px;
+}
+
+/* Ensure scheduler section isn't clipped on smaller viewports */
+.report-modal {
+  max-height: min(92vh, 920px);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body {
+  overflow: auto;
 }
 
 .section-header {

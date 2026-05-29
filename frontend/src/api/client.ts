@@ -1,9 +1,5 @@
-import {
-  API_BASE_URL,
-  type LoginRequest,
-  type LoginResponse,
-  type TelemetryRecord,
-} from '@climence/shared';
+import { type LoginRequest, type LoginResponse, type TelemetryRecord } from '@climence/shared';
+import { API_BASE_URL } from '../lib/runtime-config';
 
 export class ApiError extends Error {
   readonly status?: number;
@@ -139,7 +135,7 @@ export async function updateAlertConfig(pm25Threshold: number, token: string): P
   return res.json() as Promise<AlertConfigResponse>;
 }
 
-export async function createMission(mission: any, token: string) {
+export async function createMission(mission: unknown, token: string) {
   const res = await fetch(`${API_BASE_URL}/api/missions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...withAuth(token) },

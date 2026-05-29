@@ -303,6 +303,8 @@ export function useDashboardData(
   authToken: string,
   authUser: AuthUser,
   locale: Locale,
+  dataSource?: 'live' | 'stationary',
+  stationaryHeatmapPoints?: HeatmapPoint[],
 ) {
   const t = useCallback((key: DictKey) => translate(key, locale), [locale]);
 
@@ -313,9 +315,11 @@ export function useDashboardData(
   const [mapBounds, setMapBounds] = useState<RiyadhMapBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
-  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports'>(() =>
-    (localStorage.getItem(STORAGE_KEYS.TAB) as any) || 'overview'
-  );
+  const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports'>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.TAB);
+    const allowed = ['overview', 'livemap', 'analytics', 'alerts', 'sensors', 'reports'] as const;
+    return (allowed.includes(stored as (typeof allowed)[number]) ? (stored as (typeof allowed)[number]) : 'overview');
+  });
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
   const [historySeries, setHistorySeries] = useState<number[]>([]);
   const [historySourceUuid, setHistorySourceUuid] = useState<string | null>(null);
@@ -583,6 +587,11 @@ export function useDashboardData(
 
 
 
+  const effectiveHeatmapPoints =
+    dataSource === 'stationary' && stationaryHeatmapPoints && stationaryHeatmapPoints.length > 0
+      ? stationaryHeatmapPoints
+      : mapHeatmapPoints;
+
   return {
     // layout
     locale,
@@ -593,7 +602,7 @@ export function useDashboardData(
     // hotspots
     hotspots, selectedHotspot, selected, setSelected,
     // map
-    mapHeatmapPoints, mapHotspots, zoomPreset, setZoomPreset, mapFocusTarget, mapBounds, mapZoom,
+  mapHeatmapPoints: effectiveHeatmapPoints, mapHotspots, zoomPreset, setZoomPreset, mapFocusTarget, mapBounds, mapZoom,
     handlePickSensor, handleMapViewportChange, handlePickHotspot,
     // trend / forecast / sources
     pm25Series, pm10Series, no2Series, co2Series, trend, trendLabel, forecast, sources, drift,

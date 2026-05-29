@@ -9,6 +9,7 @@ import { Grid2x2, Layers } from 'lucide-react';
 import type { AuthUser } from '@climence/shared';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardData } from './hooks/useDashboardData';
+import { useStationaryHeatmap } from './hooks/useStationaryHeatmap';
 import { clearAuthSession, isSessionExpired, loadAuthSession } from './lib/auth-session';
 import { exportSnapshotCsv, exportSnapshotJson, exportSnapshotXlsx, loadScheduledReports, openPrintablePdf, saveScheduledReports } from './lib/reports';
 import { runDueSchedules } from './lib/schedule-runner';
@@ -24,7 +25,7 @@ import { AlertsView } from './components/panels/AlertsView';
 import { SensorsView } from './components/panels/SensorsView';
 import { ReportsView } from './components/panels/ReportsView';
 
-export type DataSource = 'live' | 'demo';
+export type DataSource = 'live' | 'stationary';
 const DS_KEY = 'climence.data-source';
 
 /* ═══════════════════════════ SESSION INIT ═══════════════════════════ */
@@ -49,12 +50,14 @@ export default function App() {
   /* ── Data source (live / demo) — persisted ── */
   const [dataSource, setDataSource] = useState<DataSource>(() => {
     const stored = typeof window !== 'undefined' ? window.localStorage.getItem(DS_KEY) : null;
-    return stored === 'demo' ? 'demo' : 'live';
+    // Backward compat: older builds stored 'demo'. Treat it as 'stationary'.
+    if (stored === 'stationary' || stored === 'demo') return 'stationary';
+    return 'live';
   });
 
   const handleToggleDataSource = useCallback(() => {
     setDataSource(prev => {
-      const next: DataSource = prev === 'live' ? 'demo' : 'live';
+      const next: DataSource = prev === 'live' ? 'stationary' : 'live';
       window.localStorage.setItem(DS_KEY, next);
       return next;
     });
@@ -73,9 +76,11 @@ export default function App() {
   /* ── Realtime ── */
   const { snapshot: liveSnapshot, status } = useLiveTelemetry(authToken);
 
-  // In demo mode, substitute the static mock; keep status as-is so the
+  // In stationary mode, substitute the static mock; keep status as-is so the
   // topbar connection indicator still reflects the real WS state.
-  const snapshot = dataSource === 'demo' ? MOCK_SNAPSHOT : liveSnapshot;
+  const snapshot = dataSource === 'stationary' ? MOCK_SNAPSHOT : liveSnapshot;
+
+  const stationaryHeatmap = useStationaryHeatmap(authToken ?? '', dataSource === 'stationary' && Boolean(authToken));
 
   /* ── Data hook (only runs when authenticated) ── */
   const data = useDashboardData(
@@ -84,6 +89,8 @@ export default function App() {
     authToken ?? '',
     authUser ?? ({ name: '', email: '', role: 'viewer' } as AuthUser),
     locale,
+    dataSource,
+    stationaryHeatmap.points,
   );
 
   /* ── Handlers ── */
@@ -150,6 +157,7 @@ export default function App() {
         status={status}
         liveAge={data.liveAge}
         feedCount={data.feed.length}
+        feed={data.feed}
         onlineSensors={data.onlineSensors}
         totalSensors={data.sensors.length}
         locale={locale}

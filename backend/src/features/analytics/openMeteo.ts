@@ -1,5 +1,6 @@
 import { RIYADH_CENTER } from '@climence/shared';
 import type { HourlyReading } from './forecast';
+import { logger } from '../../lib/logger';
 
 let cachedData: HourlyReading[] = []; // Past + future
 let pollingInterval: NodeJS.Timeout | null = null;
@@ -31,10 +32,10 @@ export async function fetchOpenMeteoForecast() {
         });
       }
       cachedData = newCache;
-      console.log(`[Open-Meteo] Cached ${newCache.length} hours (past 92d + forecast).`);
+      logger.info('[open-meteo] cache refreshed', { hours: newCache.length });
     }
   } catch (err) {
-    console.error('[Open-Meteo] Failed to fetch:', err);
+    logger.error('[open-meteo] fetch failed', { err: String(err) });
   }
 }
 

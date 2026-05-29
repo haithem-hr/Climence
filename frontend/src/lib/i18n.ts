@@ -6,6 +6,7 @@ const LOCALE_TAG: Record<Locale, string> = {
 };
 
 export const DICT = {
+  'app.brand.name': { en: 'Climence', ar: 'كليمينس' },
   'app.brand.sub': { en: 'Command Center', ar: 'مركز القيادة' },
   'app.signout': { en: 'Sign out', ar: 'تسجيل الخروج' },
   'app.export': { en: 'Export report', ar: 'تصدير التقرير' },
@@ -16,15 +17,15 @@ export const DICT = {
   'app.live': { en: 'Live', ar: 'مباشر' },
   'app.connecting': { en: 'Connecting', ar: 'جارٍ الاتصال' },
   'app.reconnecting': { en: 'Reconnecting', ar: 'إعادة الاتصال' },
-  'app.demo': { en: 'Demo', ar: 'عرض' },
-  'app.demo.badge': { en: 'DEMO', ar: 'تجريبي' },
-  'app.demo.title': { en: 'Showing static demo data, not connected to live sensors', ar: 'يتم عرض بيانات تجريبية ثابتة وغير متصلة بالمستشعرات المباشرة' },
+  'app.demo': { en: 'Stationary', ar: 'ثابت' },
+  'app.demo.badge': { en: 'STATIONARY', ar: 'ثابت' },
+  'app.demo.title': { en: 'Stationary mode uses Open‑Meteo air quality data (no live sensor connection required).', ar: 'يستخدم الوضع الثابت بيانات جودة الهواء من Open‑Meteo (بدون اتصال بالمستشعرات المباشرة).' },
   'app.toggleDirection': { en: 'Toggle language and direction', ar: 'تبديل اللغة والاتجاه' },
   'app.calendar': { en: 'Calendar', ar: 'التقويم' },
   'app.notifications': { en: 'Notifications', ar: 'الإشعارات' },
   'app.toggleNav': { en: 'Toggle navigation', ar: 'تبديل التنقل' },
   'app.closeNav': { en: 'Close navigation', ar: 'إغلاق التنقل' },
-  'app.switchToDemo': { en: 'Switch to demo data', ar: 'التبديل إلى البيانات التجريبية' },
+  'app.switchToDemo': { en: 'Switch to stationary mode', ar: 'التبديل إلى الوضع الثابت' },
   'app.switchToLive': { en: 'Switch to live data', ar: 'التبديل إلى البيانات المباشرة' },
 
   'nav.monitor': { en: 'Monitor', ar: 'مراقبة' },
@@ -76,6 +77,18 @@ export const DICT = {
   'feed.pm25Exceeded': { en: 'PM2.5 threshold exceeded · {value} ug/m3', ar: 'تم تجاوز عتبة PM2.5 · {value} ug/m3' },
   'feed.monitoringAdvisory': { en: '{name} monitoring advisory', ar: 'تنبيه مراقبة {name}' },
   'feed.metaDominant': { en: '{coord} · dominant {label} {value} {unit}', ar: '{coord} · السائد {label} {value} {unit}' },
+
+  'report.onDemand': { en: 'On-demand export', ar: 'تصدير فوري' },
+  'report.format.pdfSub': { en: 'Print-ready PDF', ar: 'PDF جاهز للطباعة' },
+  'report.format.csvSub': { en: 'Raw CSV dataset', ar: 'بيانات CSV خام' },
+  'report.format.jsonSub': { en: 'Structured JSON', ar: 'JSON مُنظّم' },
+  'report.format.xlsxSub': { en: 'Excel workbook', ar: 'مصنف Excel' },
+  'report.generate': { en: 'Generate {format} snapshot', ar: 'إنشاء لقطة {format}' },
+  'report.ready': { en: 'Scheduled exports', ar: 'التقارير المجدولة' },
+  'report.schedulerRemoved': { en: 'Scheduler removed in this build. Use on-demand exports above.', ar: 'تمت إزالة الجدولة في هذا الإصدار. استخدم التصدير الفوري أعلاه.' },
+  'report.footerNote': { en: 'Reports are generated using live sensor data and CAMS satellite validation.', ar: 'يتم إنشاء التقارير باستخدام بيانات المستشعرات المباشرة والتحقق عبر أقمار CAMS.' },
+  'report.onDemandTitle': { en: 'On-demand intelligence export', ar: 'تصدير فوري للبيانات' },
+  'report.synthNote': { en: 'Reports are synthesized from {sensors} live IoT nodes and validated via CAMS satellite telemetry.', ar: 'يتم توليد التقارير من {sensors} عقد IoT مباشرة والتحقق عبر بيانات CAMS.' },
 
   'trend.worsening': { en: 'Worsening', ar: 'يتدهور' },
   'trend.stable': { en: 'Stable', ar: 'مستقر' },

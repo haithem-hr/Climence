@@ -1,0 +1,50 @@
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: infra/nginx/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      dashboard:
+        condition: service_started
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      API_PORT: 3002
+      CLIMENCE_AUTH_BYPASS: "0"
+      CLIMENCE_JWT_SECRET: "change-me-in-production"
+      CLIMENCE_DB_PATH: /data/telemetry.db
+      CLIMENCE_BACKUP_ENABLED: "1"
+      CLIMENCE_BACKUP_INTERVAL_MINUTES: "60"
+      CLIMENCE_BACKUP_DIR: /data/backups
+      CLIMENCE_LOG_LEVEL: info
+    ports:
+      # API is reachable through the HTTPS reverse proxy (proxy -> api)
+      - "1883:1883"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      # Dashboard calls the API via the same origin through nginx.
+      VITE_CLIMENCE_API_URL: https://localhost
+    depends_on:
+      api:
+        condition: service_healthy
