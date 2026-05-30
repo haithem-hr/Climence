@@ -1,4 +1,10 @@
 import {
+  type AlertConditionOperator,
+  type AlertEvent,
+  type AlertEventStatus,
+  type AlertPollutantType,
+  type AlertRule,
+  type AlertRuleInput,
   PM25_ALERT_THRESHOLD,
   type AlertThresholdConfig,
   type CityTrendPoint,
@@ -34,10 +40,10 @@ export interface MissionRecord {
 const insertStmt = db.prepare(`
   INSERT INTO TelemetryLogs (
     uuid, state, batteryLevel, lat, lng,
-    pm25, co2, no2, temperature, humidity, rssi, client_timestamp
+    pm25, pm10, co2, no2, o3, so2, co, temperature, humidity, rssi, client_timestamp
   ) VALUES (
     @uuid, @state, @batteryLevel, @lat, @lng,
-    @pm25, @co2, @no2, @temperature, @humidity, @rssi, @client_timestamp
+    @pm25, @pm10, @co2, @no2, @o3, @so2, @co, @temperature, @humidity, @rssi, @client_timestamp
   )
 `);
 
@@ -50,8 +56,12 @@ export const insertFleet = db.transaction((drones: TelemetryInput[]) => {
       lat: drone.location.lat,
       lng: drone.location.lng,
       pm25: drone.airQuality.pm25,
+      pm10: drone.airQuality.pm10 ?? null,
       co2: drone.airQuality.co2,
       no2: drone.airQuality.no2,
+      o3: drone.airQuality.o3 ?? null,
+      so2: drone.airQuality.so2 ?? null,
+      co: drone.airQuality.co ?? null,
       temperature: drone.airQuality.temperature,
       humidity: drone.airQuality.humidity,
       rssi: drone.rssi,
@@ -158,6 +168,217 @@ export function setAlertThresholdPm25(pm25Threshold: number): AlertThresholdConf
   return getAlertThresholdConfig();
 }
 
+const ALERT_POLLUTANTS = ['pm25', 'pm10', 'no2', 'o3', 'so2', 'co'] as const;
+const ALERT_OPERATORS = ['>', '>=', '<', '<='] as const;
+
+function isAlertPollutant(value: unknown): value is AlertPollutantType {
+  return typeof value === 'string' && ALERT_POLLUTANTS.includes(value as AlertPollutantType);
+}
+
+function isAlertOperator(value: unknown): value is AlertConditionOperator {
+  return typeof value === 'string' && ALERT_OPERATORS.includes(value as AlertConditionOperator);
+}
+
+function normalizeRuleInput(input: Partial<AlertRuleInput>) {
+  const pollutant = input.pollutant_type;
+  if (pollutant !== undefined && !isAlertPollutant(pollutant)) throw new Error('Invalid pollutant_type');
+  if (input.threshold_value !== undefined && !Number.isFinite(input.threshold_value)) throw new Error('Invalid threshold_value');
+  const operator = input.condition_operator ?? '>';
+  if (!isAlertOperator(operator)) throw new Error('Invalid condition_operator');
+  return {
+    pollutant_type: pollutant,
+    threshold_value: input.threshold_value,
+    condition_operator: operator,
+    notification_channel: input.notification_channel ?? 'system',
+    is_active: input.is_active ?? true,
+  };
+}
+
+function mapAlertRule(row: any): AlertRule {
+  return {
+    rule_id: Number(row.rule_id),
+    user_id: row.user_id === null || row.user_id === undefined ? null : Number(row.user_id),
+    pollutant_type: row.pollutant_type,
+    threshold_value: Number(row.threshold_value),
+    condition_operator: row.condition_operator,
+    notification_channel: row.notification_channel ?? 'system',
+    is_active: Boolean(row.is_active),
+    created_at: row.created_at,
+  };
+}
+
+function mapAlertEvent(row: any): AlertEvent {
+  return {
+    event_id: Number(row.event_id),
+    rule_id: Number(row.rule_id),
+    triggered_at: row.triggered_at,
+    cleared_at: row.cleared_at ?? null,
+    peak_value: Number(row.peak_value),
+    status: row.status,
+    pollutant_type: row.pollutant_type,
+    threshold_value: row.threshold_value === undefined ? undefined : Number(row.threshold_value),
+    condition_operator: row.condition_operator,
+    notification_channel: row.notification_channel,
+  };
+}
+
+const listAlertRulesAllStmt = db.prepare(`
+  SELECT * FROM alert_rules
+  ORDER BY created_at DESC, rule_id DESC
+`);
+
+const listAlertRulesForUserStmt = db.prepare(`
+  SELECT * FROM alert_rules
+  WHERE user_id = ?
+  ORDER BY created_at DESC, rule_id DESC
+`);
+
+export function listAlertRules(userId?: number): AlertRule[] {
+  const rows = userId === undefined ? listAlertRulesAllStmt.all() : listAlertRulesForUserStmt.all(userId);
+  return rows.map(mapAlertRule);
+}
+
+const createAlertRuleStmt = db.prepare(`
+  INSERT INTO alert_rules (
+    user_id, pollutant_type, threshold_value, condition_operator, notification_channel, is_active
+  ) VALUES (
+    @user_id, @pollutant_type, @threshold_value, @condition_operator, @notification_channel, @is_active
+  )
+`);
+
+const alertRuleByIdStmt = db.prepare(`SELECT * FROM alert_rules WHERE rule_id = ?`);
+
+export function createAlertRule(userId: number, input: AlertRuleInput): AlertRule {
+  const normalized = normalizeRuleInput(input);
+  if (!normalized.pollutant_type || normalized.threshold_value === undefined) throw new Error('Missing alert rule fields');
+  const result = createAlertRuleStmt.run({
+    user_id: userId,
+    pollutant_type: normalized.pollutant_type,
+    threshold_value: normalized.threshold_value,
+    condition_operator: normalized.condition_operator,
+    notification_channel: normalized.notification_channel,
+    is_active: normalized.is_active ? 1 : 0,
+  });
+  return mapAlertRule(alertRuleByIdStmt.get(result.lastInsertRowid));
+}
+
+export function updateAlertRule(ruleId: number, userId: number, input: Partial<AlertRuleInput>): AlertRule | null {
+  const existing = alertRuleByIdStmt.get(ruleId) as AlertRule | undefined;
+  if (!existing || Number(existing.user_id) !== userId) return null;
+  const normalized = normalizeRuleInput(input);
+  const next = {
+    pollutant_type: normalized.pollutant_type ?? existing.pollutant_type,
+    threshold_value: normalized.threshold_value ?? Number(existing.threshold_value),
+    condition_operator: input.condition_operator ?? existing.condition_operator,
+    notification_channel: input.notification_channel ?? existing.notification_channel ?? 'system',
+    is_active: input.is_active ?? Boolean(existing.is_active),
+    rule_id: ruleId,
+  };
+  db.prepare(`
+    UPDATE alert_rules
+    SET pollutant_type = @pollutant_type,
+        threshold_value = @threshold_value,
+        condition_operator = @condition_operator,
+        notification_channel = @notification_channel,
+        is_active = @is_active
+    WHERE rule_id = @rule_id
+  `).run({ ...next, is_active: next.is_active ? 1 : 0 });
+  return mapAlertRule(alertRuleByIdStmt.get(ruleId));
+}
+
+export function deleteAlertRule(ruleId: number, userId: number): boolean {
+  const result = db.prepare(`DELETE FROM alert_rules WHERE rule_id = ? AND user_id = ?`).run(ruleId, userId);
+  return result.changes > 0;
+}
+
+export function getAlertEvents(status?: AlertEventStatus, limit = 50): AlertEvent[] {
+  const params: (string | number)[] = [];
+  let statusClause = '';
+  if (status) {
+    statusClause = 'WHERE e.status = ?';
+    params.push(status);
+  }
+  params.push(limit);
+  const rows = db.prepare(`
+    SELECT e.*, r.pollutant_type, r.threshold_value, r.condition_operator, r.notification_channel
+    FROM alert_events e
+    JOIN alert_rules r ON r.rule_id = e.rule_id
+    ${statusClause}
+    ORDER BY COALESCE(e.cleared_at, e.triggered_at) DESC
+    LIMIT ?
+  `).all(...params);
+  return rows.map(mapAlertEvent);
+}
+
+function compareAlertValue(value: number, threshold: number, operator: AlertConditionOperator) {
+  switch (operator) {
+    case '>=': return value >= threshold;
+    case '<': return value < threshold;
+    case '<=': return value <= threshold;
+    default: return value > threshold;
+  }
+}
+
+function getDronePollutantValue(drone: TelemetryInput, pollutant: AlertPollutantType) {
+  const value = drone.airQuality[pollutant];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function getRollingAverage(pollutant: AlertPollutantType) {
+  const row = db.prepare(`
+    SELECT AVG(${pollutant}) as avg_val
+    FROM TelemetryLogs
+    WHERE server_timestamp > datetime('now', '-60 minutes')
+  `).get() as { avg_val?: number | null };
+  return row.avg_val === null || row.avg_val === undefined ? null : Number(row.avg_val);
+}
+
+export function evaluateAlerts(drones: TelemetryInput[]): void {
+  const rules = listAlertRules().filter(rule => rule.is_active);
+  if (rules.length === 0) return;
+
+  const activeEventStmt = db.prepare(`SELECT * FROM alert_events WHERE rule_id = ? AND status = 'active' LIMIT 1`);
+  const insertEventStmt = db.prepare(`
+    INSERT INTO alert_events (rule_id, peak_value, status)
+    VALUES (?, ?, 'active')
+  `);
+  const clearEventStmt = db.prepare(`
+    UPDATE alert_events
+    SET cleared_at = CURRENT_TIMESTAMP,
+        status = 'cleared'
+    WHERE event_id = ?
+  `);
+  const updatePeakStmt = db.prepare(`
+    UPDATE alert_events
+    SET peak_value = ?
+    WHERE event_id = ?
+  `);
+
+  for (const rule of rules) {
+    const readings = drones
+      .map(drone => ({ drone, value: getDronePollutantValue(drone, rule.pollutant_type) }))
+      .filter((item): item is { drone: TelemetryInput; value: number } => item.value !== null);
+    const current = readings.length > 0 ? Math.max(...readings.map(item => item.value)) : null;
+    const rollingAverage = getRollingAverage(rule.pollutant_type);
+    const values = [current, rollingAverage].filter((value): value is number => value !== null && Number.isFinite(value));
+    const crossed = values.some(value => compareAlertValue(value, rule.threshold_value, rule.condition_operator));
+    const peakValue = values.length > 0 ? Math.max(...values) : 0;
+    const activeEvent = activeEventStmt.get(rule.rule_id) as { event_id: number; peak_value: number } | undefined;
+
+    if (crossed && !activeEvent) {
+      insertEventStmt.run(rule.rule_id, peakValue);
+      const source = readings.find(item => item.value === current)?.drone;
+      const location = source ? `${source.location.lat.toFixed(4)}, ${source.location.lng.toFixed(4)}` : 'rolling average';
+      console.log(`ALERT: ${rule.pollutant_type} exceeded ${rule.threshold_value} at ${location}`);
+    } else if (crossed && activeEvent && peakValue > Number(activeEvent.peak_value)) {
+      updatePeakStmt.run(peakValue, activeEvent.event_id);
+    } else if (!crossed && activeEvent) {
+      clearEventStmt.run(activeEvent.event_id);
+      console.log(`CLEARED: ${rule.pollutant_type} back to normal`);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // P0 — Raw points for hotspot clustering
 // ---------------------------------------------------------------------------
@@ -167,10 +388,13 @@ interface RawRow {
   lat: number;
   lng: number;
   pm25: number;
+  pm10?: number | null;
+  no2?: number | null;
+  o3?: number | null;
 }
 
 const rawPointsStmt = db.prepare(`
-  SELECT uuid, lat, lng, pm25
+  SELECT uuid, lat, lng, pm25, pm10, no2, o3
   FROM TelemetryLogs
   WHERE server_timestamp >= datetime('now', ? || ' minutes')
 `);
@@ -181,6 +405,23 @@ const rawPointsStmt = db.prepare(`
  */
 export function getRawPointsForHotspot(windowMinutes: number = -5): RawPoint[] {
   return rawPointsStmt.all(`-${Math.abs(windowMinutes)}`) as RawRow[];
+}
+
+let cachedHotspotClusters: ReturnType<typeof detectHotspots> | null = null;
+let hotspotRefreshTimerStarted = false;
+
+function getCachedHotspotClusters(alertThresholdPm25: number) {
+  if (!hotspotRefreshTimerStarted) {
+    hotspotRefreshTimerStarted = true;
+    setInterval(() => {
+      cachedHotspotClusters = null;
+    }, 10 * 60 * 1000).unref();
+  }
+
+  if (!cachedHotspotClusters) {
+    cachedHotspotClusters = detectHotspots(getRawPointsForHotspot(-15), alertThresholdPm25);
+  }
+  return cachedHotspotClusters;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +456,7 @@ export function getHistoricalAvg(windowMinutes: number): TrendPoint[] {
 // P2 — Historical API with resolution and zone filter
 // ---------------------------------------------------------------------------
 
-type Pollutant = 'pm25' | 'co2' | 'no2';
+type Pollutant = 'pm25' | 'pm10' | 'co2' | 'no2' | 'o3' | 'so2' | 'co';
 
 const RANGE_MINUTES: Record<string, number> = {
   '1h':   60,
@@ -352,7 +593,7 @@ const hourlyHistoryStmt = db.prepare(`
   SELECT
     strftime('%Y-%m-%dT%H:00:00Z', server_timestamp) as hourIso,
     AVG(pm25) as avgPm25,
-    AVG(pm25) * 1.2 as pm10,
+    AVG(COALESCE(pm10, pm25 * 1.2)) as pm10,
     AVG(co2) as co2,
     AVG(no2) as no2,
     AVG(pm25) * 0.4 as dust
@@ -411,8 +652,7 @@ export function computeSnapshot(): TelemetrySnapshot {
   const hotspots  = getHotspots();
 
   // P0 — DBSCAN-lite clusters
-  const rawPoints       = getRawPointsForHotspot(-5);
-  const hotspotClusters = detectHotspots(rawPoints, alertThresholdPm25);
+  const hotspotClusters = getCachedHotspotClusters(alertThresholdPm25);
 
   // P1 — trend over last 30 minutes
   const trendSeries = getHistoricalAvg(30);
@@ -425,6 +665,9 @@ export function computeSnapshot(): TelemetrySnapshot {
   // P4 — source attribution over last 24 hours
   const sourceReadings = getSourceData(24);
   const sources        = attributeSources(sourceReadings);
+  const alertRules     = listAlertRules();
+  const alertEvents    = getAlertEvents('active', 50);
+  const clearedAlertEvents = getAlertEvents('cleared', 20);
 
   return {
     drones,
@@ -436,6 +679,9 @@ export function computeSnapshot(): TelemetrySnapshot {
     forecast,
     sources,
     alertThresholdPm25,
+    alertRules,
+    alertEvents,
+    clearedAlertEvents,
     missions: getAllMissions(),
     emittedAt: new Date().toISOString(),
   };

@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual, randomBytes } from 'node:crypto';
 import type { AuthUser, UserRole } from '@climence/shared';
 import { UserRole as UserRoleEnum } from '@climence/shared';
 
@@ -13,7 +13,7 @@ interface TokenPayload {
 
 const TOKEN_HEADER = { alg: 'HS256', typ: 'JWT' } as const;
 const TOKEN_TTL_SECONDS = 12 * 60 * 60;
-const TOKEN_SECRET = process.env.CLIMENCE_AUTH_SECRET ?? 'climence-dev-secret-change-me';
+const TOKEN_SECRET = process.env.JWT_SECRET ?? randomBytes(48).toString('base64url');
 
 function encodeBase64Url(input: string) {
   return Buffer.from(input, 'utf8').toString('base64url');

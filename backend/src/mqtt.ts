@@ -1,6 +1,6 @@
 import { Aedes } from 'aedes';
 import { createServer } from 'node:net';
-import { insertFleet } from './db/queries';
+import { getStorage } from './storage/select.js';
 import { validateTelemetryPayload } from './features/telemetry/validation';
 import { broadcastSnapshot } from './ws';
 import { logger } from './lib/logger';
@@ -17,7 +17,7 @@ export async function setupMqttBroker(port = 1883) {
     callback(null, valid);
   };
 
-  aedes.on('publish', (packet, client) => {
+  aedes.on('publish', async (packet, client) => {
     if (packet.topic === 'climence/telemetry' && client) {
       try {
         const payloadString = packet.payload.toString();
@@ -32,8 +32,10 @@ export async function setupMqttBroker(port = 1883) {
           return;
         }
 
-        insertFleet(validation.payload.fleet);
-        broadcastSnapshot();
+        const storage = getStorage();
+        await storage.insertFleet(validation.payload.fleet);
+        await storage.evaluateAlerts(validation.payload.fleet);
+        await broadcastSnapshot();
         logger.info('[mqtt] telemetry ingested', { clientId: client.id, drones: validation.payload.fleet.length });
       } catch (err) {
         logger.error('[mqtt] error processing telemetry', { clientId: client.id, err: String(err) });

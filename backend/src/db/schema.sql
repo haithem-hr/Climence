@@ -6,8 +6,12 @@ CREATE TABLE IF NOT EXISTS TelemetryLogs (
   lat REAL NOT NULL,
   lng REAL NOT NULL,
   pm25 REAL NOT NULL,
+  pm10 REAL,
   co2 REAL NOT NULL,
   no2 REAL NOT NULL,
+  o3 REAL,
+  so2 REAL,
+  co REAL,
   temperature REAL NOT NULL,
   humidity REAL NOT NULL,
   rssi INTEGER NOT NULL,
@@ -22,6 +26,33 @@ CREATE TABLE IF NOT EXISTS AlertConfig (
 );
 
 INSERT OR IGNORE INTO AlertConfig (id, pm25_threshold) VALUES (1, 140);
+
+CREATE TABLE IF NOT EXISTS alert_rules (
+  rule_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  pollutant_type TEXT NOT NULL,
+  threshold_value REAL NOT NULL,
+  condition_operator TEXT NOT NULL DEFAULT '>',
+  notification_channel TEXT DEFAULT 'system',
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS alert_events (
+  event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_id INTEGER REFERENCES alert_rules(rule_id),
+  triggered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  cleared_at DATETIME,
+  peak_value REAL,
+  status TEXT DEFAULT 'active'
+);
+
+CREATE INDEX IF NOT EXISTS alert_rules_user_idx ON alert_rules (user_id);
+CREATE INDEX IF NOT EXISTS alert_events_rule_status_idx ON alert_events (rule_id, status);
+
+INSERT INTO alert_rules (user_id, pollutant_type, threshold_value, condition_operator, notification_channel, is_active)
+SELECT 1, 'pm25', 140, '>', 'system', 1
+WHERE NOT EXISTS (SELECT 1 FROM alert_rules);
 
 CREATE TABLE IF NOT EXISTS Missions (
   id TEXT PRIMARY KEY,

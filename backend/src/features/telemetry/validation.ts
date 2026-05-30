@@ -27,6 +27,10 @@ function isTelemetryInput(value: unknown): value is TelemetryInput {
   if (!isFiniteNumber(value.airQuality.pm25)) return false;
   if (!isFiniteNumber(value.airQuality.co2)) return false;
   if (!isFiniteNumber(value.airQuality.no2)) return false;
+  if ('pm10' in value.airQuality && value.airQuality.pm10 !== undefined && value.airQuality.pm10 !== null && !isFiniteNumber(value.airQuality.pm10)) return false;
+  if ('o3' in value.airQuality && value.airQuality.o3 !== undefined && value.airQuality.o3 !== null && !isFiniteNumber(value.airQuality.o3)) return false;
+  if ('so2' in value.airQuality && value.airQuality.so2 !== undefined && value.airQuality.so2 !== null && !isFiniteNumber(value.airQuality.so2)) return false;
+  if ('co' in value.airQuality && value.airQuality.co !== undefined && value.airQuality.co !== null && !isFiniteNumber(value.airQuality.co)) return false;
   if (!isFiniteNumber(value.airQuality.temperature)) return false;
   if (!isFiniteNumber(value.airQuality.humidity)) return false;
 

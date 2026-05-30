@@ -14,12 +14,15 @@ import {
   UserRole,
   aqiBandFor,
   pm25ToAqi,
+  type AlertEvent,
+  type AlertRule,
+  type AlertRuleInput,
   type AuthUser,
   type Hotspot,
   type TelemetryRecord,
   type TelemetrySnapshot,
 } from '@climence/shared';
-import { fetchAlertConfig, fetchHistory, updateAlertConfig } from '../api/client';
+import { createAlertRule, deleteAlertRule, fetchAlertConfig, fetchAlertRules, fetchHistory, updateAlertConfig, updateAlertRule } from '../api/client';
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from '../lib/analytics';
@@ -30,6 +33,7 @@ import {
   getMapMetricConfig,
   getMapMetricValue,
   heatIntensityForMetric,
+  POLLUTANT_METRIC_OPTIONS,
   type MapMetricKey,
 } from '../lib/mapMetrics';
 import type { ReportPayload } from '../lib/reports';
@@ -54,8 +58,12 @@ export interface SensorPoint {
   aqi: number;
   band: AqiBandKey;
   pm25: number;
+  pm10: number;
   co2: number;
   no2: number;
+  o3: number;
+  so2: number;
+  co: number;
   temperature: number;
   humidity: number;
   battery: number;
@@ -182,8 +190,12 @@ function isValidTelemetryRecord(drone: TelemetryRecord) {
     isFiniteNumber(drone.lat) &&
     isFiniteNumber(drone.lng) &&
     isFiniteNumber(drone.pm25) &&
+    (drone.pm10 === undefined || drone.pm10 === null || isFiniteNumber(drone.pm10)) &&
     isFiniteNumber(drone.co2) &&
     isFiniteNumber(drone.no2) &&
+    (drone.o3 === undefined || drone.o3 === null || isFiniteNumber(drone.o3)) &&
+    (drone.so2 === undefined || drone.so2 === null || isFiniteNumber(drone.so2)) &&
+    (drone.co === undefined || drone.co === null || isFiniteNumber(drone.co)) &&
     isFiniteNumber(drone.temperature) &&
     isFiniteNumber(drone.humidity) &&
     isFiniteNumber(drone.batteryLevel)
@@ -218,7 +230,13 @@ function toSensorPoint(drone: TelemetryRecord, index: number): SensorPoint {
     x, y,
     lat: drone.lat, lng: drone.lng,
     aqi, band,
-    pm25: drone.pm25, co2: drone.co2, no2: drone.no2,
+    pm25: drone.pm25,
+    pm10: drone.pm10 ?? drone.pm25 * 1.2,
+    co2: drone.co2,
+    no2: drone.no2,
+    o3: drone.o3 ?? 0,
+    so2: drone.so2 ?? 0,
+    co: drone.co ?? 0,
     temperature: drone.temperature, humidity: drone.humidity,
     battery: drone.batteryLevel, rssi: drone.rssi,
     droneState: drone.state,
@@ -326,6 +344,8 @@ export function useDashboardData(
   const [alertThreshold, setAlertThreshold] = useState(PM25_ALERT_THRESHOLD);
   const [alertThresholdDraft, setAlertThresholdDraft] = useState(String(PM25_ALERT_THRESHOLD));
   const [alertConfigState, setAlertConfigState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
+  const [alertRuleState, setAlertRuleState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
 
   useEffect(() => {
@@ -353,6 +373,15 @@ export function useDashboardData(
     return () => { cancelled = true; };
   }, [authToken]);
 
+  useEffect(() => {
+    if (!authToken) return;
+    let cancelled = false;
+    fetchAlertRules(authToken)
+      .then(rules => { if (!cancelled) setAlertRules(rules); })
+      .catch(() => { if (!cancelled) setAlertRuleState('error'); });
+    return () => { cancelled = true; };
+  }, [authToken]);
+
 
 
   const validDrones = useMemo(
@@ -361,7 +390,7 @@ export function useDashboardData(
   );
 
   const sensorProjectionSignature = useMemo(
-    () => validDrones.map(d => [d.uuid, d.state, d.lat, d.lng, d.pm25, d.co2, d.no2, d.temperature, d.humidity, d.batteryLevel, d.rssi, d.server_timestamp].join(':')).join('|'),
+    () => validDrones.map(d => [d.uuid, d.state, d.lat, d.lng, d.pm25, d.pm10, d.co2, d.no2, d.o3, d.so2, d.co, d.temperature, d.humidity, d.batteryLevel, d.rssi, d.server_timestamp].join(':')).join('|'),
     [validDrones],
   );
 
@@ -411,8 +440,22 @@ export function useDashboardData(
   );
 
   const mapHotspots = useMemo<RiyadhMapHotspot[]>(
-    () => hotspots.map(h => ({ id: h.id, lat: h.lat, lng: h.lng, aqi: h.aqi, band: h.band, radiusKm: h.radiusKm, label: h.name, valueLabel: `${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}` })),
-    [hotspots],
+    () => [
+      ...hotspots.map(h => ({ id: h.id, lat: h.lat, lng: h.lng, aqi: h.aqi, band: h.band, radiusKm: h.radiusKm, label: h.name, valueLabel: `${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}` })),
+      ...(snapshot.hotspotClusters ?? []).map((cluster, index) => ({
+        id: `cluster-${index}`,
+        lat: cluster.centroidLat,
+        lng: cluster.centroidLng,
+        aqi: Math.round(cluster.score * 300),
+        band: cluster.severity === 'critical' ? 'haz' as AqiBandKey : cluster.severity === 'high' ? 'unh' as AqiBandKey : cluster.severity === 'medium' ? 'usg' as AqiBandKey : 'mod' as AqiBandKey,
+        radiusKm: cluster.radiusKm,
+        label: `Hotspot – ${cluster.dominantPollutant ?? 'PM2.5'}`,
+        valueLabel: `Peak PM2.5 ${Math.round(cluster.peakPm25)} · ${cluster.memberUuids.length} sensors`,
+        dominantPollutant: cluster.dominantPollutant,
+        severity: cluster.severity,
+      })),
+    ],
+    [hotspots, snapshot.hotspotClusters],
   );
 
   useEffect(() => {
@@ -424,7 +467,7 @@ export function useDashboardData(
     fetchHistory(sourceUuid, authToken)
       .then(rows => {
         if (cancelled) return;
-        const history = rows.map(row => getMapMetricValue(selectedHotspot.metricKey, { pm25: row.pm25, co2: row.co2, no2: row.no2, temperature: row.temperature, humidity: row.humidity, battery: row.batteryLevel }));
+        const history = rows.map(row => getMapMetricValue(selectedHotspot.metricKey, { pm25: row.pm25, pm10: row.pm10 ?? row.pm25 * 1.2, co2: row.co2, no2: row.no2, o3: row.o3 ?? 0, so2: row.so2 ?? 0, co: row.co ?? 0, temperature: row.temperature, humidity: row.humidity, battery: row.batteryLevel }));
         setHistorySeries(history.length > 1 ? history : fallback);
         setHistorySourceUuid(sourceUuid);
       })
@@ -488,8 +531,12 @@ export function useDashboardData(
   const cityBand = aqiBandFor(cityAqi).key;
 
   const pm25Now = Math.round(average(sensors.map(s => s.pm25)) || 0);
+  const pm10Now = Math.round(average(sensors.map(s => s.pm10 ?? s.pm25 * 1.2)) || 0);
   const co2Now = Math.round(average(sensors.map(s => s.co2)) || 0);
   const no2Now = Math.round(average(sensors.map(s => s.no2)) || 0);
+  const o3Now = Math.round(average(sensors.map(s => s.o3 ?? 0)) || 0);
+  const so2Now = Math.round(average(sensors.map(s => s.so2 ?? 0)) || 0);
+  const coNow = Math.round(average(sensors.map(s => s.co ?? 0)) || 0);
   const tempNow = Math.round(average(sensors.map(s => s.temperature)) || 0);
   const humidityNow = Math.round(average(sensors.map(s => s.humidity)) || 0);
   const batteryNow = Math.round(average(sensors.map(s => s.battery)) || 0);
@@ -497,18 +544,38 @@ export function useDashboardData(
 
   const pollutantStats = useMemo<PollutantStat[]>(() => [
     { key: 'pm25', name: 'PM2.5', unit: 'ug/m3', value: pm25Now, delta: Math.round((pm25Series[pm25Series.length - 1] ?? 0) - (pm25Series[pm25Series.length - 2] ?? 0)), pct: clamp((pm25Now / 150) * 100, 4, 100) },
+    { key: 'pm10', name: 'PM10', unit: 'ug/m3', value: pm10Now, delta: Math.round(((pm10Now - 60) / 60) * 10), pct: clamp((pm10Now / 200) * 100, 4, 100) },
     { key: 'co2', name: 'CO2', unit: 'ppm', value: co2Now, delta: Math.round(((co2Now - 520) / 520) * 20), pct: clamp((co2Now / 950) * 100, 4, 100) },
     { key: 'no2', name: 'NO2', unit: 'ppb', value: no2Now, delta: Math.round(((no2Now - 35) / 35) * 12), pct: clamp((no2Now / 90) * 100, 4, 100) },
+    { key: 'o3', name: 'O3', unit: 'ug/m3', value: o3Now, delta: Math.round(((o3Now - 60) / 60) * 10), pct: clamp((o3Now / 180) * 100, 4, 100) },
+    { key: 'so2', name: 'SO2', unit: 'ug/m3', value: so2Now, delta: Math.round(((so2Now - 10) / 10) * 8), pct: clamp((so2Now / 50) * 100, 4, 100) },
+    { key: 'co', name: 'CO', unit: 'mg/m3', value: coNow, delta: Math.round(((coNow - 2) / 2) * 6), pct: clamp((coNow / 10) * 100, 4, 100) },
     { key: 'temperature', name: t('sensors.temp'), unit: 'degC', value: tempNow, delta: Math.round(((tempNow - 30) / 30) * 8), pct: clamp((tempNow / 45) * 100, 4, 100) },
     { key: 'humidity', name: t('weather.humidity'), unit: '%', value: humidityNow, delta: Math.round(((humidityNow - 35) / 35) * 8), pct: clamp((humidityNow / 100) * 100, 4, 100) },
     { key: 'battery', name: t('sensors.battery'), unit: '%', value: batteryNow, delta: Math.round(((batteryNow - 60) / 60) * 6), pct: clamp((batteryNow / 100) * 100, 4, 100) },
-  ], [batteryNow, co2Now, humidityNow, no2Now, pm25Now, pm25Series, t, tempNow]);
+  ], [batteryNow, co2Now, humidityNow, no2Now, o3Now, pm10Now, pm25Now, pm25Series, so2Now, coNow, t, tempNow]);
 
-  const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, co2: co2Now, no2: no2Now, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, humidityNow, no2Now, pm25Now, tempNow]);
+  const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, pm10: pm10Now, co2: co2Now, no2: no2Now, o3: o3Now, so2: so2Now, co: coNow, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, humidityNow, no2Now, o3Now, pm10Now, pm25Now, so2Now, coNow, tempNow]);
 
   const effectiveAlertThreshold = Number.isFinite(snapshot.alertThresholdPm25) && snapshot.alertThresholdPm25 > 0 ? snapshot.alertThresholdPm25 : alertThreshold;
+  const activeAlertEvents = snapshot.alertEvents ?? [];
+  const clearedAlertEvents = snapshot.clearedAlertEvents ?? [];
 
   const feed = useMemo<FeedItem[]>(() => {
+    if (activeAlertEvents.length > 0) {
+      return activeAlertEvents.map(event => {
+        const value = Math.round(event.peak_value * 10) / 10;
+        const label = (event.pollutant_type ?? 'pm25').toUpperCase();
+        return {
+          id: `event-${event.event_id}`,
+          severity: event.peak_value >= (event.threshold_value ?? effectiveAlertThreshold) * 1.5 ? 'crit' : 'warn',
+          title: `${label} ${event.condition_operator ?? '>'} ${event.threshold_value ?? '--'} · peak ${value}`,
+          meta: `Rule #${event.rule_id} · ${event.notification_channel ?? 'system'}`,
+          time: formatAgo(event.triggered_at),
+        };
+      });
+    }
+
     if (snapshot.alerts.length > 0) {
       return snapshot.alerts.map(alert => {
         let severity: AlertSeverity = 'info';
@@ -535,7 +602,7 @@ export function useDashboardData(
       lat: h.lat,
       lng: h.lng
     }));
-  }, [effectiveAlertThreshold, hotspots, locale, snapshot.alerts]);
+  }, [activeAlertEvents, effectiveAlertThreshold, hotspots, locale, snapshot.alerts]);
 
   const liveAge = formatAgo(snapshot.emittedAt);
   const activePollutant = pollutantStats.find(s => s.key === pollutant)?.name ?? 'PM2.5';
@@ -547,7 +614,7 @@ export function useDashboardData(
   const handlePickSensor = useCallback((sensor: RiyadhMapSensor) => {
     const source = sensors.find(item => item.uuid === sensor.uuid);
     const id = source?.id ?? `S-${sensor.uuid.slice(-4).toUpperCase()}`;
-    const metricValue = getMapMetricValue(pollutant, source ?? { pm25: sensor.pm25, co2: 0, no2: 0, temperature: 0, humidity: 0, battery: sensor.battery });
+    const metricValue = getMapMetricValue(pollutant, source ?? { pm25: sensor.pm25, pm10: sensor.pm10 ?? sensor.pm25 * 1.2, co2: 0, no2: 0, o3: 0, so2: 0, co: 0, temperature: 0, humidity: 0, battery: sensor.battery });
     setSelected({ id, name: sensor.label, coord: formatCoord(sensor.lat, sensor.lng), lat: sensor.lat, lng: sensor.lng, aqi: sensor.aqi, metricKey: pollutant, metricLabel: activeMetricConfig.label, metricUnit: activeMetricConfig.unit, metricValue, metricDisplayValue: formatMetricValue(pollutant, metricValue), band: bandForMetricValue(pollutant, metricValue), trend: Math.round((metricValue % 15) - 4), pollutant: activeMetricConfig.label, sourceUuid: sensor.uuid });
     setZoomPreset('zone');
     setMapFocusTarget({ lat: sensor.lat, lng: sensor.lng, zoom: 14, nonce: Date.now(), uuid: sensor.uuid });
@@ -571,10 +638,47 @@ export function useDashboardData(
       .catch(() => { setAlertConfigState('error'); });
   }, [alertThresholdDraft, authToken]);
 
-  const sensorLegend: Array<{ label: string; key: PollutantKey }> = [
-    { label: 'PM2.5', key: 'pm25' }, { label: 'CO2', key: 'co2' }, { label: 'NO2', key: 'no2' },
-    { label: 'Temp', key: 'temperature' }, { label: 'Humidity', key: 'humidity' }, { label: 'Battery', key: 'battery' },
-  ];
+  const refreshAlertRules = useCallback(() => {
+    if (!authToken) return;
+    fetchAlertRules(authToken)
+      .then(setAlertRules)
+      .catch(() => setAlertRuleState('error'));
+  }, [authToken]);
+
+  const handleCreateAlertRule = useCallback((input: AlertRuleInput) => {
+    if (!authToken) { setAlertRuleState('error'); return; }
+    setAlertRuleState('saving');
+    createAlertRule(input, authToken)
+      .then(rule => {
+        setAlertRules(prev => [rule, ...prev]);
+        setAlertRuleState('saved');
+      })
+      .catch(() => setAlertRuleState('error'));
+  }, [authToken]);
+
+  const handleUpdateAlertRule = useCallback((ruleId: number, input: Partial<AlertRuleInput>) => {
+    if (!authToken) { setAlertRuleState('error'); return; }
+    setAlertRuleState('saving');
+    updateAlertRule(ruleId, input, authToken)
+      .then(rule => {
+        setAlertRules(prev => prev.map(item => item.rule_id === rule.rule_id ? rule : item));
+        setAlertRuleState('saved');
+      })
+      .catch(() => setAlertRuleState('error'));
+  }, [authToken]);
+
+  const handleDeleteAlertRule = useCallback((ruleId: number) => {
+    if (!authToken) { setAlertRuleState('error'); return; }
+    setAlertRuleState('saving');
+    deleteAlertRule(ruleId, authToken)
+      .then(() => {
+        setAlertRules(prev => prev.filter(item => item.rule_id !== ruleId));
+        setAlertRuleState('saved');
+      })
+      .catch(() => setAlertRuleState('error'));
+  }, [authToken]);
+
+  const sensorLegend: Array<{ label: string; key: PollutantKey }> = POLLUTANT_METRIC_OPTIONS;
 
   const reportPayload = useMemo<ReportPayload>(() => ({
     snapshot, cityAqi, cityBandLabel: aqiBandFor(cityAqi).label, activeThreshold: effectiveAlertThreshold,
@@ -613,6 +717,8 @@ export function useDashboardData(
     // alerts
     effectiveAlertThreshold, feed, alertThresholdDraft, setAlertThresholdDraft, alertConfigState, setAlertConfigState,
     handleSaveAlertThreshold, canManageAlertSettings, thresholdExceededBy,
+    alertRules, activeAlertEvents: activeAlertEvents as AlertEvent[], clearedAlertEvents: clearedAlertEvents as AlertEvent[],
+    alertRuleState, setAlertRuleState, refreshAlertRules, handleCreateAlertRule, handleUpdateAlertRule, handleDeleteAlertRule,
     // history drawer
     drawerHistorySeries, historySeries,
 

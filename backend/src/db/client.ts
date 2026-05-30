@@ -12,4 +12,19 @@ const schemaPath = resolve(__dirname, 'schema.sql');
 export const db = new Database(dbPath);
 db.exec(readFileSync(schemaPath, 'utf8'));
 
+const telemetryColumns = new Set(
+  db.prepare('PRAGMA table_info(TelemetryLogs)').all().map((column: any) => String(column.name)),
+);
+
+for (const [name, type] of [
+  ['pm10', 'REAL'],
+  ['o3', 'REAL'],
+  ['so2', 'REAL'],
+  ['co', 'REAL'],
+] as const) {
+  if (!telemetryColumns.has(name)) {
+    db.exec(`ALTER TABLE TelemetryLogs ADD COLUMN ${name} ${type}`);
+  }
+}
+
 export default db;

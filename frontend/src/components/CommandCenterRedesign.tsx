@@ -19,7 +19,7 @@ import {
 import { aqiBandFor } from '@climence/shared';
 import type { useDashboardData } from '../hooks/useDashboardData';
 
-const SENSOR_FILTERS = ['PM2.5', 'PM10', 'NO2', 'CO2'];
+const SENSOR_FILTERS = ['PM2.5', 'PM10', 'NO2', 'O3', 'SO2', 'CO'];
 
 type DashboardData = ReturnType<typeof useDashboardData>;
 

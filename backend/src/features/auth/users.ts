@@ -1,38 +1,90 @@
 import type { AuthUser } from '@climence/shared';
 import { UserRole } from '@climence/shared';
+import bcrypt from 'bcrypt';
+import { getPostgresPool } from '../../storage/redisPostgres/clients.js';
+import { logger } from '../../lib/logger.js';
 
-interface AuthUserRecord extends AuthUser {
-  password: string;
+interface DbUserRow {
+  user_id: number;
+  username: string;
+  password_hash: string;
+  role: string;
 }
 
-const DEMO_USERS: AuthUserRecord[] = [
+const SEED_USERS = [
   {
-    id: 'u-admin',
-    name: 'Riyadh Admin',
-    email: 'admin@mewa.gov.sa',
-    role: UserRole.ADMINISTRATOR,
+    username: 'admin@mewa.gov.sa',
     password: 'Admin123!',
+    role: UserRole.ADMINISTRATOR,
   },
   {
-    id: 'u-analyst',
-    name: 'Riyadh Analyst',
-    email: 'analyst@mewa.gov.sa',
-    role: UserRole.ANALYST,
+    username: 'analyst@mewa.gov.sa',
     password: 'Analyst123!',
+    role: UserRole.ANALYST,
   },
   {
-    id: 'u-viewer',
-    name: 'Riyadh Viewer',
-    email: 'viewer@mewa.gov.sa',
-    role: UserRole.VIEWER,
+    username: 'viewer@mewa.gov.sa',
     password: 'Viewer123!',
+    role: UserRole.VIEWER,
   },
 ];
 
-export function authenticateUser(email: string, password: string): AuthUser | null {
-  const user = DEMO_USERS.find(item => item.email === email.trim().toLowerCase());
-  if (!user || user.password !== password) return null;
+let pool: ReturnType<typeof getPostgresPool> | null = null;
 
-  const { password: _password, ...safeUser } = user;
-  return safeUser;
+function getPool() {
+  if (!pool) pool = getPostgresPool();
+  return pool;
+}
+
+function nameFromUsername(username: string) {
+  const local = username.split('@')[0] ?? username;
+  const words = local.split(/[._-]/g).filter(Boolean);
+  if (words.length === 0) return username;
+  return words.map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ');
+}
+
+export async function initAuthUsers() {
+  try {
+    const db = getPool();
+    const { rows } = await db.query<{ count: string }>('SELECT COUNT(*)::text as count FROM users');
+    const count = Number(rows[0]?.count ?? '0');
+    if (count > 0) return;
+
+    for (const user of SEED_USERS) {
+      const hash = await bcrypt.hash(user.password, 10);
+      await db.query(
+        `INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING;`,
+        [user.username, hash, user.role],
+      );
+    }
+    logger.info('[auth] seeded default users', { count: SEED_USERS.length });
+  } catch (err) {
+    logger.error('[auth] failed to seed users', { err: String(err) });
+    throw err;
+  }
+}
+
+export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
+  const db = getPool();
+  const username = email.trim().toLowerCase();
+
+  const { rows } = await db.query<DbUserRow>(
+    'SELECT user_id, username, password_hash, role FROM users WHERE username = $1 LIMIT 1',
+    [username],
+  );
+  const user = rows[0];
+  if (!user) return null;
+
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) return null;
+
+  const role = user.role as AuthUser['role'];
+  if (![UserRole.ADMINISTRATOR, UserRole.ANALYST, UserRole.VIEWER].includes(role)) return null;
+
+  return {
+    id: String(user.user_id),
+    name: nameFromUsername(user.username),
+    email: user.username,
+    role,
+  };
 }

@@ -11,8 +11,12 @@ export type DroneState = (typeof DroneState)[keyof typeof DroneState];
 
 export interface AirQuality {
   pm25: number;
+  pm10?: number;
   co2: number;
   no2: number;
+  o3?: number;
+  so2?: number;
+  co?: number;
   temperature: number;
   humidity: number;
 }
@@ -46,8 +50,12 @@ export interface TelemetryRecord {
   lat: number;
   lng: number;
   pm25: number;
+  pm10?: number | null;
   co2: number;
   no2: number;
+  o3?: number | null;
+  so2?: number | null;
+  co?: number | null;
   temperature: number;
   humidity: number;
   rssi: number;
@@ -74,6 +82,8 @@ export interface HotspotCluster {
   centroidLng: number;
   radiusKm: number;
   peakPm25: number;
+  dominantPollutant?: 'PM2.5' | 'PM10' | 'NO2' | 'O3';
+  severity?: 'low' | 'medium' | 'high' | 'critical';
   memberUuids: string[];
   score: number; // normalised 0-1 severity
 }
@@ -111,4 +121,40 @@ export interface SourceAttribution {
 export interface AlertThresholdConfig {
   pm25_threshold: number;
   updated_at: string;
+}
+
+export type AlertPollutantType = 'pm25' | 'pm10' | 'no2' | 'o3' | 'so2' | 'co';
+export type AlertConditionOperator = '>' | '>=' | '<' | '<=';
+export type AlertEventStatus = 'active' | 'cleared';
+
+export interface AlertRule {
+  rule_id: number;
+  user_id: number | null;
+  pollutant_type: AlertPollutantType;
+  threshold_value: number;
+  condition_operator: AlertConditionOperator;
+  notification_channel: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AlertRuleInput {
+  pollutant_type: AlertPollutantType;
+  threshold_value: number;
+  condition_operator?: AlertConditionOperator;
+  notification_channel?: string;
+  is_active?: boolean;
+}
+
+export interface AlertEvent {
+  event_id: number;
+  rule_id: number;
+  triggered_at: string;
+  cleared_at: string | null;
+  peak_value: number;
+  status: AlertEventStatus;
+  pollutant_type?: AlertPollutantType;
+  threshold_value?: number;
+  condition_operator?: AlertConditionOperator;
+  notification_channel?: string;
 }

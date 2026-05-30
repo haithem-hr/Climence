@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getHistory, getLatest, insertFleet } from '../db/queries';
+import { getStorage } from '../storage/select.js';
 import { rolesForPermission } from '../features/auth/permissions';
 import { validateTelemetryPayload } from '../features/telemetry/validation';
 import { requireAuth, requireRole } from '../lib/auth';
@@ -10,15 +10,16 @@ const router = Router();
 const canViewTelemetry = rolesForPermission('canViewTelemetry');
 // Legacy HTTP POST telemetry ingestion removed. Now exclusively handled via MQTT.
 
-router.get('/latest', requireAuth, requireRole(...canViewTelemetry), (_req, res) => {
+router.get('/latest', requireAuth, requireRole(...canViewTelemetry), async (_req, res) => {
   try {
-    res.status(200).json(getLatest());
+    const storage = getStorage();
+    res.status(200).json(await storage.getLatest());
   } catch (err) {
     sendInternalError(res, 'Database query error', err);
   }
 });
 
-router.get('/history/:droneId', requireAuth, requireRole(...canViewTelemetry), (req, res) => {
+router.get('/history/:droneId', requireAuth, requireRole(...canViewTelemetry), async (req, res) => {
   try {
     const droneId = Array.isArray(req.params.droneId) ? req.params.droneId[0] : req.params.droneId;
     if (!droneId) {
@@ -26,7 +27,8 @@ router.get('/history/:droneId', requireAuth, requireRole(...canViewTelemetry), (
       return;
     }
 
-    const results = getHistory(droneId);
+    const storage = getStorage();
+    const results = await storage.getHistory(droneId);
     if (results.length === 0) {
       sendNotFound(res, 'Drone ID not found or has no generated history.');
       return;

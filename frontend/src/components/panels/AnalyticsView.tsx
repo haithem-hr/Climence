@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, 
   PieChart, Pie, Cell, BarChart, Bar 
 } from 'recharts';
-import { Download, Maximize2, PieChart as PieIcon, BarChart2, Clock, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Download, Maximize2, PieChart as PieIcon, BarChart2, Clock, RefreshCw } from 'lucide-react';
 import { fetchHistoryByZone, fetchOpenMeteoHistory, fetchForecast } from '../../api/client';
 import type { ForecastPoint } from '@climence/shared';
 
@@ -69,6 +69,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
   const [showForecast, setShowForecast] = useState(false);
   const [forecastHorizon, setForecastHorizon] = useState<number>(24);
   const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState<string | null>(null);
   const [lastRefresh, setLastRefresh]   = useState<Date>(new Date());
 
   const [enabled, setEnabled] = useState({
@@ -81,6 +82,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
   const loadData = useCallback(async (silent = false) => {
     if (!authToken) return;
     if (!silent) setLoading(true);
+    if (!silent) setError(null);
 
     try {
       let merged: AnalyticsPoint[] = [];
@@ -110,6 +112,11 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
         }
       }
 
+      if (merged.length < 3) {
+        setError('Insufficient data available for the selected period. Please choose a different time range.');
+      } else {
+        setError(null);
+      }
       setHistoryData(merged);
       setLastRefresh(new Date());
 
@@ -119,6 +126,8 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
       }
     } catch (err) {
       console.error('[AnalyticsView] loadData error:', err);
+      setError('Insufficient data available for the selected period. Please choose a different time range.');
+      setHistoryData([]);
     } finally {
       setLoading(false);
     }
@@ -306,7 +315,11 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
 
         {loading ? (
           <div className="analytics-loading">
-            <span className="spinning analytics-loading-spinner">◌</span> Aligning Orbital Sensors...
+            <span className="spinning analytics-loading-spinner">◌</span> Loading trend data...
+          </div>
+        ) : error ? (
+          <div className="analytics-loading" role="alert">
+            <AlertTriangle size={18} /> {error}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

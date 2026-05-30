@@ -26,6 +26,8 @@ export interface RiyadhMapHotspot {
   radiusKm?: number;
   label?: string;
   valueLabel?: string;
+  dominantPollutant?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface RiyadhMapSensor {
@@ -35,8 +37,12 @@ export interface RiyadhMapSensor {
   lng: number;
   aqi: number;
   pm25: number;
+  pm10: number;
   co2: number;
   no2: number;
+  o3: number;
+  so2: number;
+  co: number;
   temperature: number;
   humidity: number;
   battery: number;
@@ -55,6 +61,8 @@ export interface RiyadhMapCluster {
   avgPm25: number;
   maxPm25: number;
   minBattery: number;
+  dominantPollutant?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 interface Props {
@@ -77,6 +85,13 @@ const BAND_COLOR: Record<AqiBandKey, string> = {
   vunh: '#8b5ea5',
   haz: '#7f3c2f',
 };
+
+const HOTSPOT_SEVERITY_COLOR = {
+  low: '#c8a93f',
+  medium: '#d1873f',
+  high: '#cf4a4a',
+  critical: '#7f1d1d',
+} as const;
 
 const PRESET_ZOOM: Record<RiyadhZoomPreset, number> = {
   city: 11,
@@ -189,7 +204,7 @@ export function RiyadhGoogleMap({
         {mode === 'heatmap' && heatmapPoints.length > 0 && <HeatmapLayer points={heatmapPoints} />}
 
         {hotspots.map(hotspot => {
-          const hotspotColor = BAND_COLOR[hotspot.band];
+          const hotspotColor = hotspot.severity ? HOTSPOT_SEVERITY_COLOR[hotspot.severity] : BAND_COLOR[hotspot.band];
           return (
             <Circle
               key={hotspot.id}
@@ -204,15 +219,22 @@ export function RiyadhGoogleMap({
               }}
             >
               <Popup>
-                <strong>{hotspot.label ?? hotspot.id}</strong>
+                <strong>{hotspot.dominantPollutant ? `Hotspot – ${hotspot.dominantPollutant}` : hotspot.label ?? hotspot.id}</strong>
                 <div>{hotspot.valueLabel ?? `AQI ${Math.round(hotspot.aqi)}`}</div>
+                {hotspot.severity && <div>Severity: {hotspot.severity}</div>}
               </Popup>
+              {hotspot.dominantPollutant && (
+                <Tooltip direction="top" opacity={0.95} permanent>
+                  Hotspot – {hotspot.dominantPollutant}
+                </Tooltip>
+              )}
             </Circle>
           );
         })}
 
         {clusters.map(cluster => {
-          const severityBand: AqiBandKey =
+          const clusterColor = cluster.severity ? HOTSPOT_SEVERITY_COLOR[cluster.severity] : (() => {
+            const severityBand: AqiBandKey =
             cluster.maxPm25 >= 150
               ? 'haz'
               : cluster.maxPm25 >= 110
@@ -220,7 +242,8 @@ export function RiyadhGoogleMap({
                 : cluster.maxPm25 >= 75
                   ? 'usg'
                   : 'mod';
-          const clusterColor = BAND_COLOR[severityBand];
+            return BAND_COLOR[severityBand];
+          })();
 
           return (
             <Circle
@@ -237,11 +260,17 @@ export function RiyadhGoogleMap({
               }}
             >
               <Popup>
-                <strong>Cluster · {cluster.count} sensors</strong>
+                <strong>{cluster.dominantPollutant ? `Hotspot – ${cluster.dominantPollutant}` : `Cluster · ${cluster.count} sensors`}</strong>
                 <div>Avg PM2.5 {cluster.avgPm25.toFixed(1)}</div>
                 <div>Peak PM2.5 {cluster.maxPm25.toFixed(1)}</div>
                 <div>Min battery {Math.round(cluster.minBattery)}%</div>
+                {cluster.severity && <div>Severity: {cluster.severity}</div>}
               </Popup>
+              {cluster.dominantPollutant && (
+                <Tooltip direction="top" opacity={0.95} permanent>
+                  Hotspot – {cluster.dominantPollutant}
+                </Tooltip>
+              )}
             </Circle>
           );
         })}

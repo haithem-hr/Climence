@@ -13,7 +13,7 @@ import {
 
 const router = Router();
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const validation = validateLoginInput(req.body);
   if (!validation.ok) {
     sendBadRequest(res, validation.error);
@@ -35,7 +35,7 @@ router.post('/login', (req, res) => {
     return;
   }
 
-  const user = authenticateUser(email, validation.payload.password);
+  const user = await authenticateUser(email, validation.payload.password);
   if (!user) {
     const updated = loginLockout.recordFailure(email);
     if (updated.locked) {

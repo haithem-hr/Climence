@@ -1,11 +1,15 @@
 import { aqiBandFor, pm25ToAqi, type AqiBandKey } from '@climence/shared';
 
-export type MapMetricKey = 'pm25' | 'co2' | 'no2' | 'temperature' | 'humidity' | 'battery';
+export type MapMetricKey = 'pm25' | 'pm10' | 'co2' | 'no2' | 'o3' | 'so2' | 'co' | 'temperature' | 'humidity' | 'battery';
 
 export interface MetricSample {
   pm25: number;
+  pm10: number;
   co2: number;
   no2: number;
+  o3: number;
+  so2: number;
+  co: number;
   temperature: number;
   humidity: number;
   battery: number;
@@ -36,6 +40,17 @@ const MAP_METRIC_CONFIG: Record<MapMetricKey, MapMetricConfig> = {
     accessor: sample => sample.pm25,
     format: value => Math.round(value).toString(),
   },
+  pm10: {
+    key: 'pm10',
+    label: 'PM10',
+    unit: 'ug/m3',
+    legendTitle: 'PM10 · live ug/m3',
+    legendStops: ['0', '25', '50', '100', '150', '200+'],
+    min: 0,
+    max: 200,
+    accessor: sample => sample.pm10,
+    format: value => Math.round(value).toString(),
+  },
   co2: {
     key: 'co2',
     label: 'CO2',
@@ -57,6 +72,39 @@ const MAP_METRIC_CONFIG: Record<MapMetricKey, MapMetricConfig> = {
     max: 150,
     accessor: sample => sample.no2,
     format: value => Math.round(value).toString(),
+  },
+  o3: {
+    key: 'o3',
+    label: 'O3',
+    unit: 'ug/m3',
+    legendTitle: 'O3 · live ug/m3',
+    legendStops: ['0', '40', '80', '120', '160', '180+'],
+    min: 0,
+    max: 180,
+    accessor: sample => sample.o3,
+    format: value => Math.round(value).toString(),
+  },
+  so2: {
+    key: 'so2',
+    label: 'SO2',
+    unit: 'ug/m3',
+    legendTitle: 'SO2 · live ug/m3',
+    legendStops: ['0', '10', '20', '30', '40', '50+'],
+    min: 0,
+    max: 50,
+    accessor: sample => sample.so2,
+    format: value => Math.round(value).toString(),
+  },
+  co: {
+    key: 'co',
+    label: 'CO',
+    unit: 'mg/m3',
+    legendTitle: 'CO · live mg/m3',
+    legendStops: ['0', '2', '4', '6', '8', '10+'],
+    min: 0,
+    max: 10,
+    accessor: sample => sample.co,
+    format: value => value.toFixed(1),
   },
   temperature: {
     key: 'temperature',

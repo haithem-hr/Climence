@@ -15,16 +15,7 @@
  */
 
 import { Router } from 'express';
-import {
-  getCityTrend,
-  getAlertThresholdPm25,
-  getHistoricalAvg,
-  getHistoryByZone,
-  getHotspots,
-  getHourlyHistory,
-  getRawPointsForHotspot,
-  getSourceData,
-} from '../db/queries';
+import { getStorage } from '../storage/select.js';
 import { rolesForPermission } from '../features/auth/permissions';
 import { detectHotspots } from '../features/analytics/hotspots';
 import { classifyTrend } from '../features/analytics/trend';
@@ -42,7 +33,10 @@ const canViewAnalytics = rolesForPermission('canViewAnalytics');
 // ---------------------------------------------------------------------------
 router.get('/city-trend', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
   try {
-    res.status(200).json(getCityTrend());
+    const storage = getStorage();
+    Promise.resolve(storage.getCityTrend())
+      .then(data => res.status(200).json(data))
+      .catch(err => sendInternalError(res, 'Database city-trend query error', err));
   } catch (err) {
     sendInternalError(res, 'Database city-trend query error', err);
   }
@@ -53,7 +47,10 @@ router.get('/city-trend', requireAuth, requireRole(...canViewAnalytics), (_req, 
 // ---------------------------------------------------------------------------
 router.get('/hotspots', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
   try {
-    res.status(200).json(getHotspots());
+    const storage = getStorage();
+    Promise.resolve(storage.getHotspots())
+      .then(data => res.status(200).json(data))
+      .catch(err => sendInternalError(res, 'Database hotspots query error', err));
   } catch (err) {
     sendInternalError(res, 'Database hotspots query error', err);
   }
@@ -64,9 +61,13 @@ router.get('/hotspots', requireAuth, requireRole(...canViewAnalytics), (_req, re
 // ---------------------------------------------------------------------------
 router.get('/hotspot-clusters', requireAuth, requireRole(...canViewAnalytics), (_req, res) => {
   try {
-    const rawPoints = getRawPointsForHotspot(5);
-    const threshold = getAlertThresholdPm25();
-    res.status(200).json(detectHotspots(rawPoints, threshold));
+    const storage = getStorage();
+    Promise.all([
+      storage.getRawPointsForHotspot(5),
+      storage.getAlertThresholdPm25(),
+    ])
+      .then(([rawPoints, threshold]) => res.status(200).json(detectHotspots(rawPoints, threshold)))
+      .catch(err => sendInternalError(res, 'Hotspot cluster computation error', err));
   } catch (err) {
     sendInternalError(res, 'Hotspot cluster computation error', err);
   }
@@ -90,9 +91,10 @@ router.get('/trend', requireAuth, requireRole(...canViewAnalytics), (req, res) =
       return;
     }
 
-    const series = getHistoricalAvg(windowMin);
-    const trend  = classifyTrend(series, windowMin);
-    res.status(200).json(trend);
+    const storage = getStorage();
+    Promise.resolve(storage.getHistoricalAvg(windowMin))
+      .then(series => res.status(200).json(classifyTrend(series, windowMin)))
+      .catch(err => sendInternalError(res, 'Trend computation error', err));
   } catch (err) {
     sendInternalError(res, 'Trend computation error', err);
   }
@@ -101,7 +103,7 @@ router.get('/trend', requireAuth, requireRole(...canViewAnalytics), (req, res) =
 // ---------------------------------------------------------------------------
 // GET /api/analytics/history?pollutant=pm25|co2|no2&range=1h|24h|7d|30d&zone=lat,lng,radiusKm
 // ---------------------------------------------------------------------------
-const VALID_POLLUTANTS = new Set(['pm25', 'co2', 'no2']);
+const VALID_POLLUTANTS = new Set(['pm25', 'pm10', 'co2', 'no2', 'o3', 'so2', 'co']);
 const VALID_RANGES     = new Set(['1h', '6h', '12h', '24h', '7d', '30d']);
 
 router.get('/history', requireAuth, requireRole(...canViewAnalytics), (req, res) => {
@@ -132,14 +134,18 @@ router.get('/history', requireAuth, requireRole(...canViewAnalytics), (req, res)
       [centerLat, centerLng, radiusKm] = parts;
     }
 
-    const data = getHistoryByZone(
-      pollutant as 'pm25' | 'co2' | 'no2',
-      range,
-      centerLat,
-      centerLng,
-      radiusKm,
-    );
-    res.status(200).json(data);
+    const storage = getStorage();
+    Promise.resolve(
+      storage.getHistoryByZone(
+        pollutant as 'pm25' | 'pm10' | 'co2' | 'no2' | 'o3' | 'so2' | 'co',
+        range,
+        centerLat,
+        centerLng,
+        radiusKm,
+      ),
+    )
+      .then(data => res.status(200).json(data))
+      .catch(err => sendInternalError(res, 'History query error', err));
   } catch (err) {
     sendInternalError(res, 'History query error', err);
   }
@@ -158,9 +164,10 @@ router.get('/forecast', requireAuth, requireRole(...canViewAnalytics), (req, res
       return;
     }
 
-    const history  = getHourlyHistory(7);
-    const forecast = computeForecast(history, hoursParam);
-    res.status(200).json(forecast);
+    const storage = getStorage();
+    Promise.resolve(storage.getHourlyHistory(7))
+      .then(history => res.status(200).json(computeForecast(history, hoursParam)))
+      .catch(err => sendInternalError(res, 'Forecast computation error', err));
   } catch (err) {
     sendInternalError(res, 'Forecast computation error', err);
   }
@@ -183,9 +190,10 @@ router.get('/sources', requireAuth, requireRole(...canViewAnalytics), (req, res)
       return;
     }
 
-    const readings = getSourceData(hours);
-    const sources  = attributeSources(readings);
-    res.status(200).json(sources);
+    const storage = getStorage();
+    Promise.resolve(storage.getSourceData(hours))
+      .then(readings => res.status(200).json(attributeSources(readings)))
+      .catch(err => sendInternalError(res, 'Source attribution error', err));
   } catch (err) {
     sendInternalError(res, 'Source attribution error', err);
   }

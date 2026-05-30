@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { URL } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { WS_PATH, type ServerMessage } from '@climence/shared';
-import { computeSnapshot } from './db/queries';
+import { getStorage } from './storage/select.js';
 import { verifyAuthToken } from './features/auth/token';
 import { logger } from './lib/logger';
 
@@ -52,15 +52,20 @@ function extractToken(requestUrl: string | undefined, authorizationHeader: strin
 
 function sendSnapshot(socket: WebSocket) {
   if (socket.readyState !== socket.OPEN) return;
-  const msg: ServerMessage = { type: 'snapshot', data: computeSnapshot() };
-  socket.send(JSON.stringify(msg));
+  void (async () => {
+    const storage = getStorage();
+    const data = await storage.computeSnapshot();
+    const msg: ServerMessage = { type: 'snapshot', data };
+    if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(msg));
+  })();
 }
 
 // Broadcast a freshly-computed snapshot to every connected dashboard.
 // Called from the telemetry POST handler after a successful insert.
-export function broadcastSnapshot() {
+export async function broadcastSnapshot() {
   if (!wss || wss.clients.size === 0) return;
-  const msg: ServerMessage = { type: 'snapshot', data: computeSnapshot() };
+  const storage = getStorage();
+  const msg: ServerMessage = { type: 'snapshot', data: await storage.computeSnapshot() };
   const payload = JSON.stringify(msg);
   for (const client of wss.clients) {
     if (client.readyState === client.OPEN) client.send(payload);

@@ -1,4 +1,6 @@
 import type {
+  AlertEvent,
+  AlertRule,
   CityTrendPoint,
   ForecastPoint,
   Hotspot,
@@ -36,6 +38,9 @@ export interface TelemetrySnapshot {
   forecast?: ForecastPoint[];             // P3 — next N hours AQI prediction
   sources?: SourceAttribution[];          // P4 — rule-based source breakdown
   alertThresholdPm25: number;
+  alertRules?: AlertRule[];
+  alertEvents?: AlertEvent[];
+  clearedAlertEvents?: AlertEvent[];
   missions?: MissionRecord[];
   emittedAt: string;
 }

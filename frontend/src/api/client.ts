@@ -1,4 +1,11 @@
-import { type LoginRequest, type LoginResponse, type TelemetryRecord } from '@climence/shared';
+import {
+  type AlertEvent,
+  type AlertRule,
+  type AlertRuleInput,
+  type LoginRequest,
+  type LoginResponse,
+  type TelemetryRecord,
+} from '@climence/shared';
 import { API_BASE_URL } from '../lib/runtime-config';
 
 export class ApiError extends Error {
@@ -133,6 +140,50 @@ export async function updateAlertConfig(pm25Threshold: number, token: string): P
 
   if (!res.ok) throw new Error(`PUT alert config failed: ${res.status}`);
   return res.json() as Promise<AlertConfigResponse>;
+}
+
+export async function fetchAlertRules(token: string): Promise<AlertRule[]> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/rules`, {
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET alert rules failed: ${res.status}`);
+  return res.json() as Promise<AlertRule[]>;
+}
+
+export async function createAlertRule(input: AlertRuleInput, token: string): Promise<AlertRule> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...withAuth(token) },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`POST alert rule failed: ${res.status}`);
+  return res.json() as Promise<AlertRule>;
+}
+
+export async function updateAlertRule(ruleId: number, input: Partial<AlertRuleInput>, token: string): Promise<AlertRule> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/rules/${ruleId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...withAuth(token) },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`PUT alert rule failed: ${res.status}`);
+  return res.json() as Promise<AlertRule>;
+}
+
+export async function deleteAlertRule(ruleId: number, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/rules/${ruleId}`, {
+    method: 'DELETE',
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`DELETE alert rule failed: ${res.status}`);
+}
+
+export async function fetchActiveAlertEvents(token: string): Promise<AlertEvent[]> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/active`, {
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET active alerts failed: ${res.status}`);
+  return res.json() as Promise<AlertEvent[]>;
 }
 
 export async function createMission(mission: unknown, token: string) {
