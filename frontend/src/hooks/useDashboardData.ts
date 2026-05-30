@@ -14,15 +14,12 @@ import {
   UserRole,
   aqiBandFor,
   pm25ToAqi,
-  type AlertEvent,
-  type AlertRule,
-  type AlertRuleInput,
   type AuthUser,
   type Hotspot,
   type TelemetryRecord,
   type TelemetrySnapshot,
 } from '@climence/shared';
-import { createAlertRule, deleteAlertRule, fetchAlertConfig, fetchAlertRules, fetchHistory, updateAlertConfig, updateAlertRule } from '../api/client';
+import { fetchAlertConfig, fetchHistory, updateAlertConfig } from '../api/client';
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from '../lib/analytics';
@@ -33,7 +30,6 @@ import {
   getMapMetricConfig,
   getMapMetricValue,
   heatIntensityForMetric,
-  POLLUTANT_METRIC_OPTIONS,
   type MapMetricKey,
 } from '../lib/mapMetrics';
 import type { ReportPayload } from '../lib/reports';
@@ -344,8 +340,6 @@ export function useDashboardData(
   const [alertThreshold, setAlertThreshold] = useState(PM25_ALERT_THRESHOLD);
   const [alertThresholdDraft, setAlertThresholdDraft] = useState(String(PM25_ALERT_THRESHOLD));
   const [alertConfigState, setAlertConfigState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
-  const [alertRuleState, setAlertRuleState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
 
   useEffect(() => {
@@ -370,15 +364,6 @@ export function useDashboardData(
     fetchAlertConfig(authToken)
       .then(config => { if (!cancelled) { setAlertThreshold(config.pm25Threshold); setAlertThresholdDraft(String(config.pm25Threshold)); } })
       .catch(() => { });
-    return () => { cancelled = true; };
-  }, [authToken]);
-
-  useEffect(() => {
-    if (!authToken) return;
-    let cancelled = false;
-    fetchAlertRules(authToken)
-      .then(rules => { if (!cancelled) setAlertRules(rules); })
-      .catch(() => { if (!cancelled) setAlertRuleState('error'); });
     return () => { cancelled = true; };
   }, [authToken]);
 
@@ -440,22 +425,8 @@ export function useDashboardData(
   );
 
   const mapHotspots = useMemo<RiyadhMapHotspot[]>(
-    () => [
-      ...hotspots.map(h => ({ id: h.id, lat: h.lat, lng: h.lng, aqi: h.aqi, band: h.band, radiusKm: h.radiusKm, label: h.name, valueLabel: `${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}` })),
-      ...(snapshot.hotspotClusters ?? []).map((cluster, index) => ({
-        id: `cluster-${index}`,
-        lat: cluster.centroidLat,
-        lng: cluster.centroidLng,
-        aqi: Math.round(cluster.score * 300),
-        band: cluster.severity === 'critical' ? 'haz' as AqiBandKey : cluster.severity === 'high' ? 'unh' as AqiBandKey : cluster.severity === 'medium' ? 'usg' as AqiBandKey : 'mod' as AqiBandKey,
-        radiusKm: cluster.radiusKm,
-        label: `Hotspot – ${cluster.dominantPollutant ?? 'PM2.5'}`,
-        valueLabel: `Peak PM2.5 ${Math.round(cluster.peakPm25)} · ${cluster.memberUuids.length} sensors`,
-        dominantPollutant: cluster.dominantPollutant,
-        severity: cluster.severity,
-      })),
-    ],
-    [hotspots, snapshot.hotspotClusters],
+    () => hotspots.map(h => ({ id: h.id, lat: h.lat, lng: h.lng, aqi: h.aqi, band: h.band, radiusKm: h.radiusKm, label: h.name, valueLabel: `${h.metricLabel} ${h.metricDisplayValue} ${h.metricUnit}` })),
+    [hotspots],
   );
 
   useEffect(() => {
@@ -558,24 +529,8 @@ export function useDashboardData(
   const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, pm10: pm10Now, co2: co2Now, no2: no2Now, o3: o3Now, so2: so2Now, co: coNow, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, humidityNow, no2Now, o3Now, pm10Now, pm25Now, so2Now, coNow, tempNow]);
 
   const effectiveAlertThreshold = Number.isFinite(snapshot.alertThresholdPm25) && snapshot.alertThresholdPm25 > 0 ? snapshot.alertThresholdPm25 : alertThreshold;
-  const activeAlertEvents = snapshot.alertEvents ?? [];
-  const clearedAlertEvents = snapshot.clearedAlertEvents ?? [];
 
   const feed = useMemo<FeedItem[]>(() => {
-    if (activeAlertEvents.length > 0) {
-      return activeAlertEvents.map(event => {
-        const value = Math.round(event.peak_value * 10) / 10;
-        const label = (event.pollutant_type ?? 'pm25').toUpperCase();
-        return {
-          id: `event-${event.event_id}`,
-          severity: event.peak_value >= (event.threshold_value ?? effectiveAlertThreshold) * 1.5 ? 'crit' : 'warn',
-          title: `${label} ${event.condition_operator ?? '>'} ${event.threshold_value ?? '--'} · peak ${value}`,
-          meta: `Rule #${event.rule_id} · ${event.notification_channel ?? 'system'}`,
-          time: formatAgo(event.triggered_at),
-        };
-      });
-    }
-
     if (snapshot.alerts.length > 0) {
       return snapshot.alerts.map(alert => {
         let severity: AlertSeverity = 'info';
@@ -602,7 +557,7 @@ export function useDashboardData(
       lat: h.lat,
       lng: h.lng
     }));
-  }, [activeAlertEvents, effectiveAlertThreshold, hotspots, locale, snapshot.alerts]);
+  }, [effectiveAlertThreshold, hotspots, locale, snapshot.alerts]);
 
   const liveAge = formatAgo(snapshot.emittedAt);
   const activePollutant = pollutantStats.find(s => s.key === pollutant)?.name ?? 'PM2.5';
@@ -638,47 +593,11 @@ export function useDashboardData(
       .catch(() => { setAlertConfigState('error'); });
   }, [alertThresholdDraft, authToken]);
 
-  const refreshAlertRules = useCallback(() => {
-    if (!authToken) return;
-    fetchAlertRules(authToken)
-      .then(setAlertRules)
-      .catch(() => setAlertRuleState('error'));
-  }, [authToken]);
-
-  const handleCreateAlertRule = useCallback((input: AlertRuleInput) => {
-    if (!authToken) { setAlertRuleState('error'); return; }
-    setAlertRuleState('saving');
-    createAlertRule(input, authToken)
-      .then(rule => {
-        setAlertRules(prev => [rule, ...prev]);
-        setAlertRuleState('saved');
-      })
-      .catch(() => setAlertRuleState('error'));
-  }, [authToken]);
-
-  const handleUpdateAlertRule = useCallback((ruleId: number, input: Partial<AlertRuleInput>) => {
-    if (!authToken) { setAlertRuleState('error'); return; }
-    setAlertRuleState('saving');
-    updateAlertRule(ruleId, input, authToken)
-      .then(rule => {
-        setAlertRules(prev => prev.map(item => item.rule_id === rule.rule_id ? rule : item));
-        setAlertRuleState('saved');
-      })
-      .catch(() => setAlertRuleState('error'));
-  }, [authToken]);
-
-  const handleDeleteAlertRule = useCallback((ruleId: number) => {
-    if (!authToken) { setAlertRuleState('error'); return; }
-    setAlertRuleState('saving');
-    deleteAlertRule(ruleId, authToken)
-      .then(() => {
-        setAlertRules(prev => prev.filter(item => item.rule_id !== ruleId));
-        setAlertRuleState('saved');
-      })
-      .catch(() => setAlertRuleState('error'));
-  }, [authToken]);
-
-  const sensorLegend: Array<{ label: string; key: PollutantKey }> = POLLUTANT_METRIC_OPTIONS;
+  const sensorLegend: Array<{ label: string; key: PollutantKey }> = [
+    { label: 'PM2.5', key: 'pm25' }, { label: 'PM10', key: 'pm10' }, { label: 'CO2', key: 'co2' }, { label: 'NO2', key: 'no2' },
+    { label: 'O3', key: 'o3' }, { label: 'SO2', key: 'so2' }, { label: 'CO', key: 'co' },
+    { label: 'Temp', key: 'temperature' }, { label: 'Humidity', key: 'humidity' }, { label: 'Battery', key: 'battery' },
+  ];
 
   const reportPayload = useMemo<ReportPayload>(() => ({
     snapshot, cityAqi, cityBandLabel: aqiBandFor(cityAqi).label, activeThreshold: effectiveAlertThreshold,
@@ -717,8 +636,6 @@ export function useDashboardData(
     // alerts
     effectiveAlertThreshold, feed, alertThresholdDraft, setAlertThresholdDraft, alertConfigState, setAlertConfigState,
     handleSaveAlertThreshold, canManageAlertSettings, thresholdExceededBy,
-    alertRules, activeAlertEvents: activeAlertEvents as AlertEvent[], clearedAlertEvents: clearedAlertEvents as AlertEvent[],
-    alertRuleState, setAlertRuleState, refreshAlertRules, handleCreateAlertRule, handleUpdateAlertRule, handleDeleteAlertRule,
     // history drawer
     drawerHistorySeries, historySeries,
 
