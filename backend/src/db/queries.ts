@@ -6,6 +6,8 @@ import {
   type TelemetryInput,
   type TelemetryRecord,
   type TelemetrySnapshot,
+  type AlertRule,
+  type AlertRuleInput,
 } from '@climence/shared';
 import db from './client';
 import { detectHotspots, type RawPoint } from '../features/analytics/hotspots.js';
@@ -480,3 +482,236 @@ const allMissionsStmt = db.prepare(`
 `);
 
 export const getAllMissions = (): MissionRecord[] => allMissionsStmt.all() as MissionRecord[];
+
+// ---------------------------------------------------------------------------
+// Scheduled Reports (Fix 8)
+// ---------------------------------------------------------------------------
+
+export interface ScheduledReportRecord {
+  schedule_id: number;
+  user_id: number | null;
+  report_type: string;
+  region: string | null;
+  pollutants: string | null;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  recipients: string;
+  output_format: string;
+  is_active: number;
+  last_run: string | null;
+  next_run: string | null;
+  created_at: string;
+}
+
+export interface ScheduledReportInput {
+  report_type?: string;
+  region?: string;
+  pollutants?: string[];
+  frequency: 'daily' | 'weekly' | 'monthly';
+  recipients: string[];
+  output_format?: string;
+}
+
+function computeNextRun(frequency: string, from?: Date): string {
+  const d = from ?? new Date();
+  if (frequency === 'daily') d.setDate(d.getDate() + 1);
+  else if (frequency === 'weekly') d.setDate(d.getDate() + 7);
+  else if (frequency === 'monthly') d.setMonth(d.getMonth() + 1);
+  d.setHours(8, 0, 0, 0);
+  return d.toISOString();
+}
+
+const listSchedulesStmt = db.prepare(`
+  SELECT * FROM scheduled_reports WHERE user_id = ? ORDER BY created_at DESC
+`);
+
+export function listScheduledReports(userId: number): ScheduledReportRecord[] {
+  return listSchedulesStmt.all(userId) as ScheduledReportRecord[];
+}
+
+const insertScheduleStmt = db.prepare(`
+  INSERT INTO scheduled_reports (
+    user_id, report_type, region, pollutants, frequency, recipients, output_format, next_run
+  ) VALUES (
+    @user_id, @report_type, @region, @pollutants, @frequency, @recipients, @output_format, @next_run
+  )
+`);
+
+const getScheduleByIdStmt = db.prepare(`SELECT * FROM scheduled_reports WHERE schedule_id = ?`);
+
+export function createScheduledReport(userId: number, input: ScheduledReportInput): ScheduledReportRecord {
+  const info = insertScheduleStmt.run({
+    user_id: userId,
+    report_type: input.report_type ?? 'snapshot',
+    region: input.region ?? null,
+    pollutants: input.pollutants ? JSON.stringify(input.pollutants) : null,
+    frequency: input.frequency,
+    recipients: JSON.stringify(input.recipients),
+    output_format: input.output_format ?? 'pdf',
+    next_run: computeNextRun(input.frequency),
+  });
+  return getScheduleByIdStmt.get(info.lastInsertRowid) as ScheduledReportRecord;
+}
+
+const deleteScheduleStmt = db.prepare(`
+  DELETE FROM scheduled_reports WHERE schedule_id = ? AND user_id = ?
+`);
+
+export function deleteScheduledReport(scheduleId: number, userId: number): boolean {
+  const result = deleteScheduleStmt.run(scheduleId, userId);
+  return result.changes > 0;
+}
+
+const dueSchedulesStmt = db.prepare(`
+  SELECT * FROM scheduled_reports
+  WHERE is_active = 1 AND next_run <= datetime('now')
+`);
+
+const updateScheduleRunStmt = db.prepare(`
+  UPDATE scheduled_reports
+  SET last_run = CURRENT_TIMESTAMP, next_run = @next_run
+  WHERE schedule_id = @schedule_id
+`);
+
+export function getDueSchedules(): ScheduledReportRecord[] {
+  return dueSchedulesStmt.all() as ScheduledReportRecord[];
+}
+
+export function markScheduleRun(scheduleId: number, frequency: string): void {
+  updateScheduleRunStmt.run({
+    schedule_id: scheduleId,
+    next_run: computeNextRun(frequency),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Alert Rules and Events (Fix 5 / 6)
+// ---------------------------------------------------------------------------
+
+const listAlertRulesStmt = db.prepare(`
+  SELECT rule_id, user_id, pollutant_type, threshold_value, condition_operator,
+         notification_channel, is_active, created_at
+  FROM alert_rules WHERE user_id = ? OR ? IS NULL ORDER BY created_at DESC
+`);
+
+export function listAlertRules(userId?: number): AlertRule[] {
+  const rows = listAlertRulesStmt.all(userId ?? null, userId ?? null) as any[];
+  return rows.map(r => ({
+    ...r,
+    is_active: Boolean(r.is_active),
+  }));
+}
+
+const insertAlertRuleStmt = db.prepare(`
+  INSERT INTO alert_rules (user_id, pollutant_type, threshold_value, condition_operator, notification_channel, is_active)
+  VALUES (@user_id, @pollutant_type, @threshold_value, @condition_operator, @notification_channel, @is_active)
+`);
+
+const getAlertRuleByIdStmt = db.prepare(`SELECT * FROM alert_rules WHERE rule_id = ?`);
+
+export function createAlertRule(userId: number, input: AlertRuleInput): AlertRule {
+  const info = insertAlertRuleStmt.run({
+    user_id: userId,
+    pollutant_type: input.pollutant_type,
+    threshold_value: input.threshold_value,
+    condition_operator: input.condition_operator ?? '>',
+    notification_channel: input.notification_channel ?? 'system',
+    is_active: (input.is_active ?? true) ? 1 : 0,
+  });
+  const row = getAlertRuleByIdStmt.get(info.lastInsertRowid) as any;
+  return {
+    ...row,
+    is_active: Boolean(row.is_active),
+  };
+}
+
+export function updateAlertRule(ruleId: number, userId: number, input: Partial<AlertRuleInput>): AlertRule | null {
+  const sets: string[] = [];
+  const params: any = { ruleId, userId };
+  for (const [key, val] of Object.entries(input)) {
+    if (val !== undefined) {
+      sets.push(`${key} = @${key}`);
+      params[key] = key === 'is_active' ? (val ? 1 : 0) : val;
+    }
+  }
+  if (sets.length === 0) return getAlertRuleByIdStmt.get(ruleId) as AlertRule | null;
+
+  const updateStmt = db.prepare(`
+    UPDATE alert_rules SET ${sets.join(', ')} WHERE rule_id = @ruleId AND user_id = @userId
+  `);
+  updateStmt.run(params);
+  const row = getAlertRuleByIdStmt.get(ruleId) as any;
+  return row ? { ...row, is_active: Boolean(row.is_active) } : null;
+}
+
+const deleteAlertRuleStmt = db.prepare(`
+  DELETE FROM alert_rules WHERE rule_id = ? AND user_id = ?
+`);
+
+export function deleteAlertRule(ruleId: number, userId: number): boolean {
+  const result = deleteAlertRuleStmt.run(ruleId, userId);
+  return result.changes > 0;
+}
+
+export function getAlertEvents(status?: string, limit: number = 50): any[] {
+  let query = `
+    SELECT ae.*, ar.pollutant_type, ar.threshold_value, ar.condition_operator, ar.notification_channel
+    FROM alert_events ae LEFT JOIN alert_rules ar ON ae.rule_id = ar.rule_id
+  `;
+  const params: any[] = [];
+  if (status) {
+    query += ` WHERE ae.status = ?`;
+    params.push(status);
+  }
+  query += ` ORDER BY ae.triggered_at DESC LIMIT ?`;
+  params.push(limit);
+
+  return db.prepare(query).all(...params) as any[];
+}
+
+const activeEventByRuleStmt = db.prepare(`
+  SELECT * FROM alert_events WHERE rule_id = ? AND status = 'active' LIMIT 1
+`);
+
+const insertAlertEventStmt = db.prepare(`
+  INSERT INTO alert_events (rule_id, peak_value, status) VALUES (?, ?, 'active')
+`);
+
+const updateAlertEventPeakStmt = db.prepare(`
+  UPDATE alert_events SET peak_value = ? WHERE event_id = ?
+`);
+
+const clearAlertEventStmt = db.prepare(`
+  UPDATE alert_events SET cleared_at = CURRENT_TIMESTAMP, status = 'cleared'
+  WHERE rule_id = ? AND status = 'active'
+`);
+
+export function evaluateAlerts(drones: TelemetryInput[]): void {
+  const rules = db.prepare(`SELECT * FROM alert_rules WHERE is_active = 1`).all() as any[];
+
+  for (const rule of rules) {
+    const pollutant = rule.pollutant_type;
+    for (const drone of drones) {
+      const value = (drone.airQuality as any)[pollutant];
+      if (value === undefined || value === null) continue;
+
+      const op = rule.condition_operator;
+      const threshold = Number(rule.threshold_value);
+      const crosses = op === '>' ? value > threshold
+        : op === '>=' ? value >= threshold
+        : op === '<' ? value < threshold
+        : op === '<=' ? value <= threshold
+        : false;
+
+      if (crosses) {
+        const existing = activeEventByRuleStmt.get(rule.rule_id) as any;
+        if (!existing) {
+          insertAlertEventStmt.run(rule.rule_id, value);
+        } else if (value > existing.peak_value) {
+          updateAlertEventPeakStmt.run(value, existing.event_id);
+        }
+      } else {
+        clearAlertEventStmt.run(rule.rule_id);
+      }
+    }
+  }
+}

@@ -67,3 +67,18 @@ CREATE TABLE IF NOT EXISTS Missions (
   start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS scheduled_reports (
+  schedule_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  report_type TEXT NOT NULL DEFAULT 'snapshot',
+  region TEXT,
+  pollutants TEXT,
+  frequency TEXT NOT NULL CHECK (frequency IN ('daily','weekly','monthly')),
+  recipients TEXT NOT NULL DEFAULT '[]',
+  output_format TEXT DEFAULT 'pdf',
+  is_active INTEGER DEFAULT 1,
+  last_run DATETIME,
+  next_run DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

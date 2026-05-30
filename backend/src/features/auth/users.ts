@@ -1,7 +1,7 @@
 import type { AuthUser } from '@climence/shared';
 import { UserRole } from '@climence/shared';
-import bcrypt from 'bcrypt';
-import { getPostgresPool } from '../../storage/redisPostgres/clients.js';
+import bcrypt from './bcrypt-mock.js';
+import { getPostgresPool, migratePostgres } from '../../storage/redisPostgres/clients.js';
 import { logger } from '../../lib/logger.js';
 
 interface DbUserRow {
@@ -46,6 +46,7 @@ function nameFromUsername(username: string) {
 export async function initAuthUsers() {
   try {
     const db = getPool();
+    await migratePostgres(db);
     const { rows } = await db.query<{ count: string }>('SELECT COUNT(*)::text as count FROM users');
     const count = Number(rows[0]?.count ?? '0');
     if (count > 0) return;

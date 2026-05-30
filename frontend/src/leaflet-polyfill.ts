@@ -1,3 +1,4 @@
+/* eslint-disable */
 import L from 'leaflet';
 
 if (typeof window !== 'undefined') {

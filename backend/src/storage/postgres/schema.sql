@@ -90,3 +90,21 @@ CREATE TABLE IF NOT EXISTS missions (
 
 CREATE INDEX IF NOT EXISTS missions_start_time_idx
   ON missions (start_time DESC);
+
+CREATE TABLE IF NOT EXISTS scheduled_reports (
+  schedule_id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(user_id),
+  report_type VARCHAR(50) NOT NULL DEFAULT 'snapshot',
+  region VARCHAR(50),
+  pollutants TEXT[],
+  frequency VARCHAR(20) NOT NULL CHECK (frequency IN ('daily','weekly','monthly')),
+  recipients TEXT[] NOT NULL DEFAULT '{}',
+  output_format VARCHAR(10) DEFAULT 'pdf',
+  is_active BOOLEAN DEFAULT true,
+  last_run TIMESTAMPTZ,
+  next_run TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS scheduled_reports_user_idx ON scheduled_reports (user_id);
+CREATE INDEX IF NOT EXISTS scheduled_reports_next_run_idx ON scheduled_reports (next_run) WHERE is_active = true;

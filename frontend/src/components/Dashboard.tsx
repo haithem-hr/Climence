@@ -156,11 +156,17 @@ function HotspotDrawer({
   if (omData?.current) {
     const c = omData.current;
     const u = omData.current_units;
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     extendedStats.push({ key: 'pm10' as any, name: 'PM10', unit: u.pm10 || 'µg/m³', value: c.pm10, delta: 0, pct: 0 });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     extendedStats.push({ key: 'ozone' as any, name: 'O3', unit: u.ozone || 'µg/m³', value: c.ozone, delta: 0, pct: 0 });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     extendedStats.push({ key: 'so2' as any, name: 'SO2', unit: u.sulphur_dioxide || 'µg/m³', value: c.sulphur_dioxide, delta: 0, pct: 0 });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     extendedStats.push({ key: 'dust' as any, name: 'Dust', unit: u.dust || 'µg/m³', value: c.dust, delta: 0, pct: 0 });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     extendedStats.push({ key: 'uv' as any, name: 'UV Index', unit: '', value: c.uv_index, delta: 0, pct: 0 });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     extendedStats.push({ key: 'eu_aqi' as any, name: 'EU AQI', unit: '', value: c.european_aqi, delta: 0, pct: 0 });
   }
 

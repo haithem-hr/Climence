@@ -1414,6 +1414,28 @@ html[dir='rtl'] .map-panel-br {
   opacity: 0.35;
 }
 
+.map-sensor-marker.is-status-offline .map-sensor-core {
+  background: #7f8c8d !important;
+  border-color: #ef4444 !important;
+}
+.map-sensor-marker.is-status-mission .map-sensor-core {
+  background: #3b82f6 !important;
+  border-color: #f97316 !important;
+}
+.map-sensor-marker.is-status-mission {
+  animation: map-sensor-pulse 1.65s ease-in-out infinite;
+}
+.map-sensor-marker.is-status-mission .map-sensor-ring {
+  inset: 1px;
+  border: 2px solid #f97316;
+  opacity: 0.92;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.45);
+}
+.map-sensor-marker.is-status-idle .map-sensor-core {
+  background: #0ca678 !important;
+  border-color: #2b8a3e !important;
+}
+
 .map-sensor-marker.is-gathering-data {
   animation: map-sensor-pulse 1.65s ease-in-out infinite;
 }

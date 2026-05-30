@@ -77,6 +77,15 @@ router.get('/active', requireAuth, requireRole(...canViewAlerts), async (_req, r
   }
 });
 
+router.get('/cleared', requireAuth, requireRole(...canViewAlerts), async (_req, res) => {
+  try {
+    const storage = getStorage();
+    res.status(200).json(await storage.getAlertEvents('cleared', 50));
+  } catch (err) {
+    sendInternalError(res, 'Database cleared alerts query error', err);
+  }
+});
+
 router.get('/rules', requireAuth, requireRole(...canViewAlerts), async (req, res) => {
   try {
     const storage = getStorage();

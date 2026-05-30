@@ -4,23 +4,30 @@ export interface MarkerStateSensor {
   band: AqiBandKey;
   droneState: DroneStateValue;
   serverTimestamp: string;
+  status?: 'offline' | 'mission' | 'idle';
 }
 
 export function markerFillVar(band: AqiBandKey) {
   return `var(--aqi-${band})`;
 }
 
-export function markerStateClass(droneState: DroneStateValue) {
-  switch (droneState) {
-    case DroneState.OFFLINE:
-      return 'is-offline';
-    case DroneState.LOW_BATTERY:
-      return 'is-low-battery';
-    case DroneState.GATHERING_DATA:
-      return 'is-gathering-data';
-    default:
-      return '';
+export function markerStateClass(droneState: DroneStateValue, status?: 'offline' | 'mission' | 'idle') {
+  const classes: string[] = [];
+  if (droneState === DroneState.OFFLINE || status === 'offline') {
+    classes.push('is-status-offline');
+  } else if (status === 'mission') {
+    classes.push('is-status-mission');
+  } else if (status === 'idle') {
+    classes.push('is-status-idle');
   }
+
+  if (droneState === DroneState.LOW_BATTERY) {
+    classes.push('is-low-battery');
+  }
+  if (droneState === DroneState.GATHERING_DATA) {
+    classes.push('is-gathering-data');
+  }
+  return classes.join(' ');
 }
 
 export function describeDroneState({ droneState, serverTimestamp }: Pick<MarkerStateSensor, 'droneState' | 'serverTimestamp'>) {
@@ -44,8 +51,10 @@ export function describeDroneState({ droneState, serverTimestamp }: Pick<MarkerS
 
 export function buildSensorMarkerHtml(sensor: MarkerStateSensor) {
   const classes = ['map-sensor-marker'];
-  const stateClass = markerStateClass(sensor.droneState);
-  if (stateClass) classes.push(stateClass);
+  const stateClass = markerStateClass(sensor.droneState, sensor.status);
+  if (stateClass) {
+    classes.push(stateClass);
+  }
 
   const batteryOverlay =
     sensor.droneState === DroneState.LOW_BATTERY

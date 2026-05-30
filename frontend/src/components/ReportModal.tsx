@@ -1,16 +1,18 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Clock, Download, FileText, Sparkles, X, Zap } from 'lucide-react';
 import {
   exportSnapshotCsv,
   exportSnapshotJson,
   exportSnapshotXlsx,
-  loadScheduledReports,
-  nextRunIso,
   openPrintablePdf,
-  saveScheduledReports,
   type ReportPayload,
-  type ScheduledReport,
 } from '../lib/reports';
+import {
+  fetchScheduledReports,
+  createScheduledReport,
+  deleteScheduledReport,
+  type ApiScheduledReport,
+} from '../api/client';
 import { formatDateTimeCompact, tFormat, translate, type Locale } from '../lib/i18n';
 import { describeScheduleCountdown } from '../lib/schedule-runner';
 
@@ -19,22 +21,38 @@ interface Props {
   onClose: () => void;
   payload: ReportPayload;
   locale: Locale;
+  authToken: string;
 }
 
-export function ReportModal({ open, onClose, payload, locale }: Props) {
+export function ReportModal({ open, onClose, payload, locale, authToken }: Props) {
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv' | 'json' | 'xlsx'>('pdf');
-  const [cadence, setCadence] = useState<ScheduledReport['cadence']>('daily');
-  const [scheduleFormat, setScheduleFormat] = useState<ScheduledReport['format']>('pdf');
-  const [schedules, setSchedules] = useState<ScheduledReport[]>(() => loadScheduledReports());
+  const [cadence, setCadence] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [scheduleFormat, setScheduleFormat] = useState<'pdf' | 'csv' | 'json' | 'xlsx'>('pdf');
+  const [schedules, setSchedules] = useState<ApiScheduledReport[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const t = useCallback((key: Parameters<typeof translate>[0]) => translate(key, locale), [locale]);
 
-  const cadenceLabel = useMemo(() => {
-    if (cadence === 'daily') return t('report.cadence.daily');
-    if (cadence === 'weekly') return t('report.cadence.weekly');
-    return t('report.cadence.monthly');
-  }, [cadence, t]);
+  const loadSchedules = useCallback(async () => {
+    if (!authToken) return;
+    setLoading(true);
+    try {
+      const data = await fetchScheduledReports(authToken);
+      setSchedules(data);
+    } catch (err) {
+      console.error('Failed to fetch schedules:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    if (open && authToken) {
+      void loadSchedules();
+    }
+  }, [open, authToken, loadSchedules]);
+
 
   if (!open) return null;
 
@@ -43,6 +61,40 @@ export function ReportModal({ open, onClose, payload, locale }: Props) {
     else if (selectedFormat === 'csv') exportSnapshotCsv(payload);
     else if (selectedFormat === 'json') exportSnapshotJson(payload);
     else if (selectedFormat === 'xlsx') exportSnapshotXlsx(payload);
+  };
+
+  const handleAddSchedule = async () => {
+    try {
+      const newSchedule = await createScheduledReport(
+        {
+          frequency: cadence,
+          output_format: scheduleFormat,
+          report_type: 'snapshot',
+          recipients: [],
+        },
+        authToken
+      );
+      setSchedules(prev => [newSchedule, ...prev]);
+      setToast(t('report.scheduleAdded'));
+      window.setTimeout(() => setToast(null), 2500);
+    } catch (err) {
+      console.error('Failed to add schedule:', err);
+      setToast('Failed to add schedule');
+      window.setTimeout(() => setToast(null), 2500);
+    }
+  };
+
+  const handleRemoveSchedule = async (scheduleId: number) => {
+    try {
+      await deleteScheduledReport(scheduleId, authToken);
+      setSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
+      setToast(t('report.scheduleRemoved'));
+      window.setTimeout(() => setToast(null), 2500);
+    } catch (err) {
+      console.error('Failed to remove schedule:', err);
+      setToast('Failed to remove schedule');
+      window.setTimeout(() => setToast(null), 2500);
+    }
   };
 
   return (
@@ -130,7 +182,7 @@ export function ReportModal({ open, onClose, payload, locale }: Props) {
                     className="select"
                     title={t('report.schedule')}
                     value={cadence}
-                    onChange={e => setCadence(e.target.value as ScheduledReport['cadence'])}
+                    onChange={e => setCadence(e.target.value as 'daily' | 'weekly' | 'monthly')}
                   >
                     <option value="daily">{t('report.cadence.daily')}</option>
                     <option value="weekly">{t('report.cadence.weekly')}</option>
@@ -144,7 +196,7 @@ export function ReportModal({ open, onClose, payload, locale }: Props) {
                     className="select"
                     title={t('report.schedule')}
                     value={scheduleFormat}
-                    onChange={e => setScheduleFormat(e.target.value as ScheduledReport['format'])}
+                    onChange={e => setScheduleFormat(e.target.value as 'pdf' | 'csv' | 'json' | 'xlsx')}
                   >
                     <option value="pdf">{t('report.pdf')}</option>
                     <option value="csv">{t('report.csv')}</option>
@@ -155,23 +207,7 @@ export function ReportModal({ open, onClose, payload, locale }: Props) {
 
                 <button
                   className="btn primary add-sched-btn"
-                  onClick={() => {
-                    const next: ScheduledReport = {
-                      id: crypto.randomUUID(),
-                      label: tFormat('report.scheduleRuns', locale, {
-                        cadence: cadenceLabel,
-                        format: scheduleFormat.toUpperCase(),
-                      }),
-                      cadence,
-                      nextRun: nextRunIso(cadence),
-                      format: scheduleFormat,
-                    };
-                    const nextSchedules = [next, ...schedules];
-                    setSchedules(nextSchedules);
-                    saveScheduledReports(nextSchedules);
-                    setToast(t('report.scheduleAdded'));
-                    window.setTimeout(() => setToast(null), 2500);
-                  }}
+                  onClick={handleAddSchedule}
                 >
                   <Sparkles size={14} /> {t('report.addSchedule')}
                 </button>
@@ -180,12 +216,27 @@ export function ReportModal({ open, onClose, payload, locale }: Props) {
               <div className="scheduler-list-area">
                 <div className="list-label">{t('report.existing')}</div>
 
-                {schedules.length === 0 ? (
+                {loading ? (
+                  <div className="empty-state">Loading schedules...</div>
+                ) : schedules.length === 0 ? (
                   <div className="empty-state">{t('report.noneScheduled')}</div>
                 ) : (
                   <div className="sched-list">
                     {schedules.map(item => {
-                      const countdown = describeScheduleCountdown(item.nextRun);
+                      const itemCadenceLabel =
+                        item.frequency === 'daily'
+                          ? t('report.cadence.daily')
+                          : item.frequency === 'weekly'
+                            ? t('report.cadence.weekly')
+                            : t('report.cadence.monthly');
+                      
+                      const itemLabel = tFormat('report.scheduleRuns', locale, {
+                        cadence: itemCadenceLabel,
+                        format: (item.output_format || 'pdf').toUpperCase(),
+                      });
+
+                      const nextRunStr = item.next_run || '';
+                      const countdown = describeScheduleCountdown(nextRunStr);
                       const countdownLabel =
                         countdown.bucket === 'now'
                           ? t('report.countdown.now')
@@ -196,27 +247,21 @@ export function ReportModal({ open, onClose, payload, locale }: Props) {
                               : tFormat('report.countdown.days', locale, { value: countdown.value ?? 0 });
 
                       return (
-                        <div className="sched-item" key={item.id}>
+                        <div className="sched-item" key={item.schedule_id}>
                           <div>
-                            <div className="sched-label">{item.label}</div>
+                            <div className="sched-label">{itemLabel}</div>
                             <div className="sched-meta">
                               <span className="dot active" />
                               <Clock size={12} />
                               <span>
-                                {t('report.nextRun')}: {formatDateTimeCompact(item.nextRun, locale)} · {countdownLabel}
+                                {t('report.nextRun')}: {nextRunStr ? formatDateTimeCompact(nextRunStr, locale) : '--'} · {countdownLabel}
                               </span>
                             </div>
                           </div>
 
                           <button
                             className="btn ghost"
-                            onClick={() => {
-                              const nextSchedules = schedules.filter(s => s.id !== item.id);
-                              setSchedules(nextSchedules);
-                              saveScheduledReports(nextSchedules);
-                              setToast(t('report.scheduleRemoved'));
-                              window.setTimeout(() => setToast(null), 2500);
-                            }}
+                            onClick={() => handleRemoveSchedule(item.schedule_id)}
                           >
                             {t('report.removeSchedule')}
                           </button>

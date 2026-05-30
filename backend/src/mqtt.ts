@@ -35,6 +35,27 @@ export async function setupMqttBroker(port = 1883) {
         const storage = getStorage();
         await storage.insertFleet(validation.payload.fleet);
         await storage.evaluateAlerts(validation.payload.fleet);
+
+        // Check if any drone has reached its mission target
+        try {
+          const missions = await storage.getAllMissions();
+          for (const drone of validation.payload.fleet) {
+            const activeMission = missions.find(
+              m => m.target_id === drone.uuid && m.status !== 'completed' && m.status !== 'done'
+            );
+            if (activeMission) {
+              const latDiff = Math.abs(drone.location.lat - activeMission.lat);
+              const lngDiff = Math.abs(drone.location.lng - activeMission.lng);
+              if (latDiff < 0.005 && lngDiff < 0.005) {
+                logger.info(`[mqtt] Drone ${drone.uuid} reached target coordinates for mission ${activeMission.id}. Completing mission.`);
+                await storage.updateMissionStatus(activeMission.id, 'completed', 'Target coordinates reached successfully.');
+              }
+            }
+          }
+        } catch (missionErr) {
+          logger.error('[mqtt] error processing mission target check', { err: String(missionErr) });
+        }
+
         await broadcastSnapshot();
         logger.info('[mqtt] telemetry ingested', { clientId: client.id, drones: validation.payload.fleet.length });
       } catch (err) {

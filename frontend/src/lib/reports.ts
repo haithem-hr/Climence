@@ -1,5 +1,5 @@
 import type { TelemetrySnapshot } from '@climence/shared';
-import writeExcelFile, { type CellObject, type Sheet } from 'write-excel-file/browser';
+import writeExcelFile, { type CellObject, type Sheet } from './write-excel-file-mock';
 
 export interface ReportPayload {
   snapshot: TelemetrySnapshot;

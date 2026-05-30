@@ -1,8 +1,7 @@
 services:
   proxy:
     build:
-      context: .
-      dockerfile: infra/nginx/Dockerfile
+      context: ./infra/nginx
     ports:
       - "80:80"
       - "443:443"

@@ -35,6 +35,11 @@ import {
   setAlertThresholdPm25,
   updateAlertRule,
   updateMissionStatus,
+  listScheduledReports,
+  createScheduledReport,
+  deleteScheduledReport,
+  getDueSchedules,
+  markScheduleRun,
 } from '../db/queries.js';
 import type { HistoryPoint, MissionRecord, Storage } from './index.js';
 
@@ -71,6 +76,12 @@ export const sqliteStorage: Storage = {
   insertMission,
   updateMissionStatus,
   getAllMissions: getAllMissions as () => MissionRecord[],
+
+  listScheduledReports,
+  createScheduledReport,
+  deleteScheduledReport,
+  getDueSchedules,
+  markScheduleRun,
 
   computeSnapshot: computeSnapshot as () => TelemetrySnapshot,
 };

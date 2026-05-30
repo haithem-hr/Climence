@@ -11,8 +11,6 @@ import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardData } from './hooks/useDashboardData';
 import { useStationaryHeatmap } from './hooks/useStationaryHeatmap';
 import { clearAuthSession, isSessionExpired, loadAuthSession } from './lib/auth-session';
-import { exportSnapshotCsv, exportSnapshotJson, exportSnapshotXlsx, loadScheduledReports, openPrintablePdf, saveScheduledReports } from './lib/reports';
-import { runDueSchedules } from './lib/schedule-runner';
 import { translate, type Locale } from './lib/i18n';
 import { MOCK_SNAPSHOT } from './lib/mockData';
 import { AuthScreen } from './components/AuthScreen';
@@ -105,32 +103,6 @@ export default function App() {
     setAuthUser(null);
   }, []);
 
-  useEffect(() => {
-    if (!authToken || !authUser) return;
-
-    const runSchedules = () => {
-      const stored = loadScheduledReports();
-      if (stored.length === 0) return;
-      const result = runDueSchedules(
-        stored,
-        data.reportPayload,
-        {
-          pdf: openPrintablePdf,
-          csv: exportSnapshotCsv,
-          json: exportSnapshotJson,
-          xlsx: exportSnapshotXlsx,
-        },
-      );
-      if (result.executed.length > 0) {
-        saveScheduledReports(result.schedules);
-      }
-    };
-
-    runSchedules();
-    const timer = window.setInterval(runSchedules, 300000);
-    return () => window.clearInterval(timer);
-  }, [authToken, authUser, data.reportPayload]);
-
   /* ── Auth gate ── */
   if (!authToken || !authUser) {
     return <AuthScreen onLogin={handleLogin} locale={locale} onToggleRtl={() => setRtl(prev => !prev)} />;
@@ -184,6 +156,7 @@ export default function App() {
         onClose={() => setReportModalOpen(false)}
         payload={data.reportPayload}
         locale={locale}
+        authToken={authToken}
       />
     </>
   );

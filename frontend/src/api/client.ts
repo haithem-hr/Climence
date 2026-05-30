@@ -186,6 +186,14 @@ export async function fetchActiveAlertEvents(token: string): Promise<AlertEvent[
   return res.json() as Promise<AlertEvent[]>;
 }
 
+export async function fetchClearedAlertEvents(token: string): Promise<AlertEvent[]> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/cleared`, {
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET cleared alerts failed: ${res.status}`);
+  return res.json() as Promise<AlertEvent[]>;
+}
+
 export async function createMission(mission: unknown, token: string) {
   const res = await fetch(`${API_BASE_URL}/api/missions`, {
     method: 'POST',
@@ -204,4 +212,55 @@ export async function updateMission(id: string, payload: { status: string; repor
   });
   if (!res.ok) throw new Error(`PATCH mission failed: ${res.status}`);
   return res.json();
+}
+
+export interface ApiScheduledReport {
+  schedule_id: number;
+  user_id: number;
+  report_type: string;
+  region: string | null;
+  pollutants: string[] | string | null;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  recipients: string[] | string;
+  output_format: 'pdf' | 'csv' | 'json' | 'xlsx';
+  is_active: boolean | number;
+  last_run: string | null;
+  next_run: string | null;
+  created_at: string;
+}
+
+export async function fetchScheduledReports(token: string): Promise<ApiScheduledReport[]> {
+  const res = await fetch(`${API_BASE_URL}/api/reports/schedules`, {
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`GET scheduled reports failed: ${res.status}`);
+  return res.json() as Promise<ApiScheduledReport[]>;
+}
+
+export async function createScheduledReport(
+  input: {
+    report_type?: string;
+    region?: string;
+    pollutants?: string[];
+    frequency: 'daily' | 'weekly' | 'monthly';
+    recipients?: string[];
+    output_format?: string;
+  },
+  token: string
+): Promise<ApiScheduledReport> {
+  const res = await fetch(`${API_BASE_URL}/api/reports/schedules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...withAuth(token) },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`POST scheduled report failed: ${res.status}`);
+  return res.json() as Promise<ApiScheduledReport>;
+}
+
+export async function deleteScheduledReport(scheduleId: number, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/reports/schedules/${scheduleId}`, {
+    method: 'DELETE',
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`DELETE scheduled report failed: ${res.status}`);
 }

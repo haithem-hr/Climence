@@ -8,11 +8,13 @@ import alertsRouter from './routes/alerts';
 import analyticsRouter from './routes/analytics';
 import telemetryRouter from './routes/telemetry';
 import missionsRouter from './routes/missions';
+import reportsRouter from './routes/reports';
 import healthRouter from './routes/health';
 import { setupWebSocket } from './ws';
 import { startOpenMeteoPolling } from './features/analytics/openMeteo';
 import { setupMqttBroker } from './mqtt';
 import { startBackupScheduler } from './features/backup/scheduler';
+import { startReportScheduler } from './scheduler';
 import { logger } from './lib/logger';
 import { initAuthUsers } from './features/auth/users';
 
@@ -36,12 +38,14 @@ app.use('/api/telemetry', telemetryRouter);
 app.use('/api/missions', missionsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/reports', reportsRouter);
 app.use('/api', healthRouter);
 
 const server = createServer(app);
 setupWebSocket(server);
 startOpenMeteoPolling();
 startBackupScheduler();
+startReportScheduler();
 await initAuthUsers();
 await setupMqttBroker(1883);
 

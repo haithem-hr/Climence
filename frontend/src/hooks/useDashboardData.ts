@@ -18,8 +18,21 @@ import {
   type Hotspot,
   type TelemetryRecord,
   type TelemetrySnapshot,
+  type AlertRule,
+  type AlertRuleInput,
+  type AlertEvent,
 } from '@climence/shared';
-import { fetchAlertConfig, fetchHistory, updateAlertConfig } from '../api/client';
+import {
+  fetchAlertConfig,
+  fetchHistory,
+  updateAlertConfig,
+  fetchAlertRules,
+  createAlertRule,
+  deleteAlertRule,
+  fetchActiveAlertEvents,
+  fetchClearedAlertEvents,
+  createMission,
+} from '../api/client';
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
 import { computeDriftVector, computeForecast, computeSourceAttribution, detectTrend } from '../lib/analytics';
@@ -65,7 +78,7 @@ export interface SensorPoint {
   battery: number;
   rssi: number;
   droneState: DroneState;
-  status: 'online' | 'offline';
+  status: 'offline' | 'mission' | 'idle';
   serverTimestamp: string;
 }
 
@@ -212,13 +225,16 @@ export function makePath(data: number[], width: number, height: number, padding:
     .join(' ');
 }
 
-function toSensorPoint(drone: TelemetryRecord, index: number): SensorPoint {
+function toSensorPoint(drone: TelemetryRecord, index: number, missions?: { target_id: string; status: string }[]): SensorPoint {
   const latSpan = RIYADH_BOUNDS.maxLat - RIYADH_BOUNDS.minLat;
   const lngSpan = RIYADH_BOUNDS.maxLng - RIYADH_BOUNDS.minLng;
   const x = clamp((drone.lng - RIYADH_BOUNDS.minLng) / lngSpan, 0.06, 0.94);
   const y = clamp(1 - (drone.lat - RIYADH_BOUNDS.minLat) / latSpan, 0.08, 0.92);
   const aqi = pm25ToAqi(drone.pm25);
   const band = aqiBandFor(aqi).key;
+  const hasActiveMission = missions?.some(
+    m => m.target_id === drone.uuid && m.status !== 'completed' && m.status !== 'done'
+  );
   return {
     id: `S-${String(index + 1).padStart(3, '0')}`,
     label: `Sensor ${drone.uuid.slice(-4).toUpperCase()}`,
@@ -236,7 +252,7 @@ function toSensorPoint(drone: TelemetryRecord, index: number): SensorPoint {
     temperature: drone.temperature, humidity: drone.humidity,
     battery: drone.batteryLevel, rssi: drone.rssi,
     droneState: drone.state,
-    status: drone.state === DroneState.OFFLINE ? 'offline' : 'online',
+    status: drone.state === DroneState.OFFLINE ? 'offline' : hasActiveMission ? 'mission' : 'idle',
     serverTimestamp: drone.server_timestamp,
   };
 }
@@ -341,6 +357,67 @@ export function useDashboardData(
   const [alertThresholdDraft, setAlertThresholdDraft] = useState(String(PM25_ALERT_THRESHOLD));
   const [alertConfigState, setAlertConfigState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
+  const [activeAlertEvents, setActiveAlertEvents] = useState<AlertEvent[]>([]);
+  const [clearedAlertEvents, setClearedAlertEvents] = useState<AlertEvent[]>([]);
+  const [alertRuleState, setAlertRuleState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const refreshAlertData = useCallback(() => {
+    if (!authToken) return;
+    fetchAlertRules(authToken)
+      .then(setAlertRules)
+      .catch(() => {});
+    fetchActiveAlertEvents(authToken)
+      .then(setActiveAlertEvents)
+      .catch(() => {});
+    fetchClearedAlertEvents(authToken)
+      .then(setClearedAlertEvents)
+      .catch(() => {});
+  }, [authToken]);
+
+  const handleCreateAlertRule = useCallback((input: AlertRuleInput) => {
+    if (!authToken) {
+      setAlertRuleState('error');
+      return;
+    }
+    setAlertRuleState('saving');
+    createAlertRule(input, authToken)
+      .then(() => {
+        setAlertRuleState('saved');
+        refreshAlertData();
+        setTimeout(() => setAlertRuleState('idle'), 3000);
+      })
+      .catch(() => {
+        setAlertRuleState('error');
+      });
+  }, [authToken, refreshAlertData]);
+
+  const handleDeleteAlertRule = useCallback((ruleId: number) => {
+    if (!authToken) return;
+    deleteAlertRule(ruleId, authToken)
+      .then(() => {
+        refreshAlertData();
+      })
+      .catch(() => {});
+  }, [authToken, refreshAlertData]);
+
+  const handleDispatchDrone = useCallback((droneUuid: string, droneLabel: string, lat: number, lng: number) => {
+    if (!authToken) return Promise.reject(new Error('No auth token'));
+    const missionId = `mission-${Date.now()}`;
+    const targetCoord = {
+      lat: lat + 0.001,
+      lng: lng + 0.001
+    };
+    return createMission({
+      id: missionId,
+      targetId: droneUuid,
+      targetName: droneLabel,
+      targetCoord,
+      resourceType: 'scrubber',
+      priority: 'high',
+      status: 'active'
+    }, authToken);
+  }, [authToken]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.TAB, currentTab);
@@ -358,6 +435,12 @@ export function useDashboardData(
     localStorage.setItem(STORAGE_KEYS.RANGE, range);
   }, [range]);
 
+  // Refresh alert data when auth token or telemetry snapshot changes
+  useEffect(() => {
+    if (!authToken) return;
+    refreshAlertData();
+  }, [authToken, snapshot, refreshAlertData]);
+
   useEffect(() => {
     if (!authToken) return;
     let cancelled = false;
@@ -374,16 +457,21 @@ export function useDashboardData(
     [snapshot.drones],
   );
 
+  const missionsSignature = useMemo(
+    () => snapshot.missions?.map(m => [m.id, m.target_id, m.status].join(':')).join('|') ?? '',
+    [snapshot.missions]
+  );
+
   const sensorProjectionSignature = useMemo(
     () => validDrones.map(d => [d.uuid, d.state, d.lat, d.lng, d.pm25, d.pm10, d.co2, d.no2, d.o3, d.so2, d.co, d.temperature, d.humidity, d.batteryLevel, d.rssi, d.server_timestamp].join(':')).join('|'),
     [validDrones],
   );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sensors = useMemo(() => validDrones.map((d, i) => toSensorPoint(d, i)).sort((a, b) => b.aqi - a.aqi), [sensorProjectionSignature, validDrones]);
-  const onlineSensors = useMemo(() => sensors.filter(s => s.status === 'online').length, [sensors]);
+  const sensors = useMemo(() => validDrones.map((d, i) => toSensorPoint(d, i, snapshot.missions)).sort((a, b) => b.aqi - a.aqi), [sensorProjectionSignature, missionsSignature, validDrones, snapshot.missions]);
+  const onlineSensors = useMemo(() => sensors.filter(s => s.status !== 'offline').length, [sensors]);
   const sensorsInView = useMemo(() => mapBounds ? sensors.filter(s => isSensorInBounds(s, mapBounds)) : sensors, [mapBounds, sensors]);
-  const onlineSensorsInView = useMemo(() => sensorsInView.filter(s => s.status === 'online').length, [sensorsInView]);
+  const onlineSensorsInView = useMemo(() => sensorsInView.filter(s => s.status !== 'offline').length, [sensorsInView]);
 
   const hotspots = useMemo(() => {
     if (snapshot.hotspots.length > 0) {
@@ -636,6 +724,8 @@ export function useDashboardData(
     // alerts
     effectiveAlertThreshold, feed, alertThresholdDraft, setAlertThresholdDraft, alertConfigState, setAlertConfigState,
     handleSaveAlertThreshold, canManageAlertSettings, thresholdExceededBy,
+    alertRules, activeAlertEvents, clearedAlertEvents, alertRuleState, setAlertRuleState,
+    handleCreateAlertRule, handleDeleteAlertRule, handleDispatchDrone,
     // history drawer
     drawerHistorySeries, historySeries,
 

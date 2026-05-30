@@ -49,7 +49,7 @@ export function filterLiveMapSensors(
   filter: LiveMapFilterState,
 ): RiyadhMapSensor[] {
   return sensors.filter(sensor => {
-    if (filter.status === 'online' && sensor.status !== 'online') return false;
+    if (filter.status === 'online' && sensor.status === 'offline') return false;
     if (filter.status === 'offline' && sensor.status !== 'offline') return false;
 
     if (typeof filter.minPm25 === 'number' && sensor.pm25 < filter.minPm25) return false;

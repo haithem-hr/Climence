@@ -69,7 +69,6 @@ export function SensorsView({ data: d }: { data: DashboardData }) {
 function SensorCard({ sensor, i, d, onShowDetail }: { sensor: RiyadhMapSensor; i: number; d: DashboardData; onShowDetail: (sensor: RiyadhMapSensor) => void }) {
   const isOffline = sensor.status === 'offline';
   const aqiBand = aqiBandFor(sensor.aqi || pm25ToAqi(sensor.pm25));
-  // const [expanded, setExpanded] = useState(false); // REMOVED
 
   return (
     <div
@@ -84,11 +83,31 @@ function SensorCard({ sensor, i, d, onShowDetail }: { sensor: RiyadhMapSensor; i
           </h3>
           <p className="text-xs text-[var(--ink-3)] font-mono mt-1">{sensor.lat.toFixed(4)}, {sensor.lng.toFixed(4)}</p>
         </div>
-        <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${isOffline
-            ? 'bg-transparent text-[var(--ink-3)] border-[var(--line)]'
-            : 'bg-[var(--brand-10)] text-[var(--brand)] border-[var(--brand-20)]'
-          }`}>
-          {isOffline ? d.t('sensors.offline') : d.t('sensors.online')}
+        <div 
+          className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border animate-in fade-in duration-300"
+          style={{
+            backgroundColor: sensor.status === 'offline'
+              ? 'rgba(239, 68, 68, 0.1)'
+              : sensor.status === 'mission'
+                ? 'rgba(245, 158, 11, 0.1)'
+                : 'rgba(16, 185, 129, 0.1)',
+            color: sensor.status === 'offline'
+              ? 'var(--danger)'
+              : sensor.status === 'mission'
+                ? 'var(--warn)'
+                : 'var(--ok)',
+            borderColor: sensor.status === 'offline'
+              ? 'rgba(239, 68, 68, 0.2)'
+              : sensor.status === 'mission'
+                ? 'rgba(245, 158, 11, 0.2)'
+                : 'rgba(16, 185, 129, 0.2)',
+          }}
+        >
+          {sensor.status === 'offline'
+            ? d.t('sensors.offline')
+            : sensor.status === 'mission'
+              ? d.t('sensors.mission')
+              : d.t('sensors.idle')}
         </div>
       </div>
 
@@ -109,42 +128,58 @@ function SensorCard({ sensor, i, d, onShowDetail }: { sensor: RiyadhMapSensor; i
         </div>
       </div>
 
-      {!isOffline && (
-        <div className="mt-6 pt-4 border-t border-[var(--line)] flex items-center justify-between">
+      <div className="mt-6 pt-4 border-t border-[var(--line)] flex items-center justify-between">
+        <button
+          onClick={() => onShowDetail(sensor)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-1)] hover:bg-[var(--bg-2)] text-[var(--ink-2)] text-xs font-semibold transition-colors border border-[var(--line)]"
+        >
+          <Activity size={14} /> {d.t('sensors.seeDetails')}
+        </button>
+        <div className="flex gap-2">
           <button
-            onClick={() => onShowDetail(sensor)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-1)] hover:bg-[var(--bg-2)] text-[var(--ink-2)] text-xs font-semibold transition-colors border border-[var(--line)]"
+            disabled={sensor.status === 'offline' || sensor.status === 'mission'}
+            onClick={() => {
+              d.handleDispatchDrone(sensor.uuid, sensor.label, sensor.lat, sensor.lng);
+            }}
+            style={{
+              backgroundColor: sensor.status === 'offline' ? 'rgba(128,128,128,0.1)' : sensor.status === 'mission' ? 'rgba(59,130,246,0.1)' : 'rgba(239, 68, 68, 0.1)',
+              color: sensor.status === 'offline' ? 'var(--ink-3)' : sensor.status === 'mission' ? '#3b82f6' : 'var(--danger)',
+              border: sensor.status === 'offline' ? '1px solid var(--line)' : sensor.status === 'mission' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              fontSize: '12px',
+              fontWeight: '700',
+              transition: 'all 0.2s'
+            }}
+            className="hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Activity size={14} /> {d.t('sensors.seeDetails')}
+            {sensor.status === 'offline' ? d.t('alerts.onlineOnly') : sensor.status === 'mission' ? d.t('sensors.mission') : d.t('alerts.dispatchDrone')}
           </button>
-          <div className="flex gap-2">
 
-            <button
-              onClick={() => {
-                d.handlePickSensor(sensor);
-                d.setCurrentTab('livemap');
-              }}
-              style={{
-                backgroundColor: 'var(--ok)',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: '700',
-                boxShadow: '0 4px 12px oklch(from var(--ok) l c h / 0.25)',
-                transition: 'all 0.2s'
-              }}
-              className="hover:opacity-90"
-            >
-              {d.t('btn.onMap')}
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              d.handlePickSensor(sensor);
+              d.setCurrentTab('livemap');
+            }}
+            style={{
+              backgroundColor: 'var(--ok)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              fontSize: '12px',
+              fontWeight: '700',
+              boxShadow: '0 4px 12px oklch(from var(--ok) l c h / 0.25)',
+              transition: 'all 0.2s'
+            }}
+            className="hover:opacity-90"
+          >
+            {d.t('btn.onMap')}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
-
 function SensorDetailDialog({ isOpen, onClose, sensor, d }: { isOpen: boolean; onClose: () => void; sensor: RiyadhMapSensor | null; d: DashboardData }) {
   const { data: omData } = useOpenMeteoAirQuality(sensor?.lat || 0, sensor?.lng || 0);
   if (!isOpen || !sensor) return null;
@@ -166,8 +201,31 @@ function SensorDetailDialog({ isOpen, onClose, sensor, d }: { isOpen: boolean; o
               <h2 className="text-2xl font-bold text-[var(--ink-1)] leading-tight">{sensor.label || `Sensor ${sensor.uuid.slice(0, 8)}`}</h2>
               <div className="flex items-center gap-3 mt-1.5">
                 <span className="text-xs font-mono text-[var(--ink-3)]">{sensor.lat.toFixed(4)}, {sensor.lng.toFixed(4)}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${sensor.status === 'offline' ? 'bg-[var(--bg-2)] text-[var(--ink-3)]' : 'bg-[var(--brand-10)] text-[var(--brand)]'}`}>
-                  {sensor.status}
+                <span 
+                  className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                  style={{
+                    backgroundColor: sensor.status === 'offline'
+                      ? 'rgba(239, 68, 68, 0.1)'
+                      : sensor.status === 'mission'
+                        ? 'rgba(245, 158, 11, 0.1)'
+                        : 'rgba(16, 185, 129, 0.1)',
+                    color: sensor.status === 'offline'
+                      ? 'var(--danger)'
+                      : sensor.status === 'mission'
+                        ? 'var(--warn)'
+                        : 'var(--ok)',
+                    borderColor: sensor.status === 'offline'
+                      ? 'rgba(239, 68, 68, 0.2)'
+                      : sensor.status === 'mission'
+                        ? 'rgba(245, 158, 11, 0.2)'
+                        : 'rgba(16, 185, 129, 0.2)',
+                  }}
+                >
+                  {sensor.status === 'offline'
+                    ? d.t('sensors.offline')
+                    : sensor.status === 'mission'
+                      ? d.t('sensors.mission')
+                      : d.t('sensors.idle')}
                 </span>
               </div>
             </div>
@@ -242,6 +300,31 @@ function SensorDetailDialog({ isOpen, onClose, sensor, d }: { isOpen: boolean; o
 
           {/* Action Footer */}
           <div className="flex gap-3 pt-4 border-t border-[var(--line)]">
+            <button
+              disabled={sensor.status === 'offline' || sensor.status === 'mission'}
+              onClick={() => {
+                d.handleDispatchDrone(sensor.uuid, sensor.label, sensor.lat, sensor.lng);
+                onClose();
+              }}
+              style={{
+                backgroundColor: sensor.status === 'offline' ? 'rgba(128,128,128,0.1)' : sensor.status === 'mission' ? 'rgba(59,130,246,0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: sensor.status === 'offline' ? 'var(--ink-3)' : sensor.status === 'mission' ? '#3b82f6' : 'var(--danger)',
+                border: sensor.status === 'offline' ? '1px solid var(--line)' : sensor.status === 'mission' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
+                padding: '16px',
+                borderRadius: '16px',
+                fontSize: '14px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                flex: 1,
+                transition: 'all 0.2s'
+              }}
+              className="hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sensor.status === 'offline' ? d.t('alerts.onlineOnly') : sensor.status === 'mission' ? d.t('sensors.mission') : d.t('alerts.dispatchDrone')}
+            </button>
 
             <button
               onClick={() => {

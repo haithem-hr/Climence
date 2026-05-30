@@ -474,6 +474,160 @@ export function createRedisPostgresStorage(opts: {
     };
   }
 
+  // ------------ Alert rules (Postgres) ------------
+
+  async function listAlertRules(userId?: number) {
+    const { rows } = await pool.query(
+      `SELECT rule_id, user_id, pollutant_type, threshold_value, condition_operator,
+              notification_channel, is_active, created_at
+       FROM alert_rules WHERE user_id = $1 OR $1 IS NULL ORDER BY created_at DESC`,
+      [userId ?? null],
+    );
+    return rows.map(r => ({ ...r, is_active: Boolean(r.is_active) }));
+  }
+
+  async function createAlertRule(userId: number, input: any) {
+    const { rows } = await pool.query(
+      `INSERT INTO alert_rules (user_id, pollutant_type, threshold_value, condition_operator, notification_channel, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [userId, input.pollutant_type, input.threshold_value, input.condition_operator ?? '>', input.notification_channel ?? 'system', input.is_active ?? true],
+    );
+    return { ...rows[0], is_active: Boolean(rows[0].is_active) };
+  }
+
+  async function updateAlertRule(ruleId: number, userId: number, input: any) {
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    let idx = 1;
+    for (const [key, val] of Object.entries(input)) {
+      if (val !== undefined) { sets.push(`${key} = $${idx++}`); vals.push(val); }
+    }
+    if (sets.length === 0) return null;
+    vals.push(ruleId, userId);
+    const { rows } = await pool.query(
+      `UPDATE alert_rules SET ${sets.join(', ')} WHERE rule_id = $${idx++} AND user_id = $${idx} RETURNING *`,
+      vals,
+    );
+    return rows[0] ? { ...rows[0], is_active: Boolean(rows[0].is_active) } : null;
+  }
+
+  async function deleteAlertRule(ruleId: number, userId: number) {
+    const { rowCount } = await pool.query(
+      `DELETE FROM alert_rules WHERE rule_id = $1 AND user_id = $2`,
+      [ruleId, userId],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
+  async function getAlertEvents(status?: string, limit?: number) {
+    const { rows } = await pool.query(
+      `SELECT ae.*, ar.pollutant_type, ar.threshold_value, ar.condition_operator, ar.notification_channel
+       FROM alert_events ae LEFT JOIN alert_rules ar ON ae.rule_id = ar.rule_id
+       ${status ? "WHERE ae.status = '" + status + "'" : ''}
+       ORDER BY ae.triggered_at DESC LIMIT $1`,
+      [limit ?? 50],
+    );
+    return rows;
+  }
+
+  async function evaluateAlerts(drones: TelemetryInput[]) {
+    // Evaluate alert rules against incoming telemetry
+    const { rows: rules } = await pool.query(
+      `SELECT * FROM alert_rules WHERE is_active = true`,
+    );
+
+    for (const rule of rules) {
+      const pollutant = rule.pollutant_type as string;
+      for (const drone of drones) {
+        const value = (drone.airQuality as any)[pollutant];
+        if (value === undefined || value === null) continue;
+
+        const op = rule.condition_operator;
+        const threshold = Number(rule.threshold_value);
+        const crosses = op === '>' ? value > threshold
+          : op === '>=' ? value >= threshold
+          : op === '<' ? value < threshold
+          : op === '<=' ? value <= threshold
+          : false;
+
+        if (crosses) {
+          const { rows: existing } = await pool.query(
+            `SELECT * FROM alert_events WHERE rule_id = $1 AND status = 'active' LIMIT 1`,
+            [rule.rule_id],
+          );
+          if (existing.length === 0) {
+            await pool.query(
+              `INSERT INTO alert_events (rule_id, peak_value, status) VALUES ($1, $2, 'active')`,
+              [rule.rule_id, value],
+            );
+          } else if (value > existing[0].peak_value) {
+            await pool.query(
+              `UPDATE alert_events SET peak_value = $1 WHERE event_id = $2`,
+              [value, existing[0].event_id],
+            );
+          }
+        } else {
+          await pool.query(
+            `UPDATE alert_events SET cleared_at = now(), status = 'cleared'
+             WHERE rule_id = $1 AND status = 'active'`,
+            [rule.rule_id],
+          );
+        }
+      }
+    }
+  }
+
+  // ------------ Scheduled reports (Postgres, Fix 8) ------------
+
+  async function listScheduledReports(userId: number) {
+    const { rows } = await pool.query(
+      `SELECT * FROM scheduled_reports WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId],
+    );
+    return rows;
+  }
+
+  async function createScheduledReport(userId: number, input: any) {
+    const nextRun = computeNextRunPg(input.frequency);
+    const { rows } = await pool.query(
+      `INSERT INTO scheduled_reports (user_id, report_type, region, pollutants, frequency, recipients, output_format, next_run)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [userId, input.report_type ?? 'snapshot', input.region ?? null, input.pollutants ?? null, input.frequency, input.recipients ?? [], input.output_format ?? 'pdf', nextRun],
+    );
+    return rows[0];
+  }
+
+  async function deleteScheduledReport(scheduleId: number, userId: number) {
+    const { rowCount } = await pool.query(
+      `DELETE FROM scheduled_reports WHERE schedule_id = $1 AND user_id = $2`,
+      [scheduleId, userId],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
+  async function getDueSchedules() {
+    const { rows } = await pool.query(
+      `SELECT * FROM scheduled_reports WHERE is_active = true AND next_run <= now()`,
+    );
+    return rows;
+  }
+
+  async function markScheduleRun(scheduleId: number, frequency: string) {
+    await pool.query(
+      `UPDATE scheduled_reports SET last_run = now(), next_run = $1 WHERE schedule_id = $2`,
+      [computeNextRunPg(frequency), scheduleId],
+    );
+  }
+
+  function computeNextRunPg(frequency: string): string {
+    const d = new Date();
+    if (frequency === 'daily') d.setDate(d.getDate() + 1);
+    else if (frequency === 'weekly') d.setDate(d.getDate() + 7);
+    else if (frequency === 'monthly') d.setMonth(d.getMonth() + 1);
+    d.setHours(8, 0, 0, 0);
+    return d.toISOString();
+  }
+
   return {
     insertFleet,
     getLatest,
@@ -485,6 +639,12 @@ export function createRedisPostgresStorage(opts: {
     getAlertThresholdConfig,
     getAlertThresholdPm25,
     setAlertThresholdPm25,
+    listAlertRules,
+    createAlertRule,
+    updateAlertRule,
+    deleteAlertRule,
+    getAlertEvents,
+    evaluateAlerts,
 
     getRawPointsForHotspot,
     getHistoricalAvg,
@@ -495,6 +655,12 @@ export function createRedisPostgresStorage(opts: {
     insertMission,
     updateMissionStatus,
     getAllMissions,
+
+    listScheduledReports,
+    createScheduledReport,
+    deleteScheduledReport,
+    getDueSchedules,
+    markScheduleRun,
 
     computeSnapshot,
   };

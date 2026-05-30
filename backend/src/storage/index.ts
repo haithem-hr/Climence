@@ -14,6 +14,7 @@ import type { RawPoint } from '../features/analytics/hotspots.js';
 import type { TrendPoint } from '../features/analytics/trend.js';
 import type { HourlyReading } from '../features/analytics/forecast.js';
 import type { AttributionReading } from '../features/analytics/sources.js';
+import type { ScheduledReportRecord, ScheduledReportInput } from '../db/queries.js';
 
 export interface MissionRecord {
   id: string;
@@ -73,6 +74,13 @@ export interface Storage {
   insertMission(m: any): void | Promise<void>;
   updateMissionStatus(id: string, status: string, report?: string): unknown | Promise<unknown>;
   getAllMissions(): MissionRecord[] | Promise<MissionRecord[]>;
+
+  // Scheduled Reports
+  listScheduledReports(userId: number): ScheduledReportRecord[] | Promise<ScheduledReportRecord[]>;
+  createScheduledReport(userId: number, input: ScheduledReportInput): ScheduledReportRecord | Promise<ScheduledReportRecord>;
+  deleteScheduledReport(scheduleId: number, userId: number): boolean | Promise<boolean>;
+  getDueSchedules(): ScheduledReportRecord[] | Promise<ScheduledReportRecord[]>;
+  markScheduleRun(scheduleId: number, frequency: string): void | Promise<void>;
 
   // Snapshot
   computeSnapshot(): TelemetrySnapshot | Promise<TelemetrySnapshot>;

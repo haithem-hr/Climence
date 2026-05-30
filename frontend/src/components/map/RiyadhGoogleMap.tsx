@@ -48,7 +48,7 @@ export interface RiyadhMapSensor {
   battery: number;
   band: AqiBandKey;
   droneState: DroneState;
-  status: 'online' | 'offline';
+  status: 'offline' | 'mission' | 'idle';
   serverTimestamp: string;
 }
 
