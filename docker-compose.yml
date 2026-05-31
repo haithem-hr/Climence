@@ -39,7 +39,7 @@ services:
     volumes:
       - ./data:/data
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3002/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -66,17 +66,19 @@ services:
       POSTGRES_DB: climence
       POSTGRES_USER: climence
       POSTGRES_PASSWORD: climence
+    ports:
+      - "5432:5432"
     volumes:
       - climence_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U climence -d climence"]
+      test: [ "CMD-SHELL", "pg_isready -U climence -d climence" ]
       interval: 10s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command: [ "redis-server", "--appendonly", "yes" ]
     volumes:
       - climence_redis:/data
 
