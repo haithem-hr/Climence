@@ -45,7 +45,7 @@ export function LiveMapView({ data }: LiveMapViewProps) {
   const [minPm25, setMinPm25] = useState(0);
   const [lowBatteryOnly, setLowBatteryOnly] = useState(false);
   const [batteryThreshold, setBatteryThreshold] = useState(30);
-  const [clusterEnabled, setClusterEnabled] = useState(true);
+  const clusterEnabled = true;
 
   const [playbackEnabled, setPlaybackEnabled] = useState(false);
   const [playbackPlaying, setPlaybackPlaying] = useState(false);
@@ -234,18 +234,6 @@ export function LiveMapView({ data }: LiveMapViewProps) {
               aria-label="battery threshold"
             />
           </div>
-
-          <div className="live-map-chip-group">
-            <button className={`live-map-chip ${clusterEnabled ? 'active' : ''}`} onClick={() => setClusterEnabled(prev => !prev)}>
-              Clustering
-            </button>
-            <button className={`live-map-chip ${data.mode === 'hardware' ? 'active' : ''}`} onClick={() => data.setMode('hardware')}>
-              Hardware
-            </button>
-            <button className={`live-map-chip ${data.mode === 'heatmap' ? 'active' : ''}`} onClick={() => data.setMode('heatmap')}>
-              Heatmap
-            </button>
-          </div>
         </div>
 
         <div className="live-map-toolbar-row">
@@ -311,27 +299,8 @@ export function LiveMapView({ data }: LiveMapViewProps) {
           focusTarget={activeFocusTarget}
           onViewportChange={data.handleMapViewportChange}
           onPickSensor={data.handlePickSensor}
+          dataSource={data.dataSource}
         />
-
-        <div className="live-map-legend glass">
-          <div className="eyebrow live-map-legend-title">Live map legend</div>
-          <div className="live-map-legend-row">
-            <span className="sw live-map-legend-swatch live-map-legend-swatch--good" /> Good
-          </div>
-          <div className="live-map-legend-row">
-            <span className="sw live-map-legend-swatch live-map-legend-swatch--usg" /> Elevated
-          </div>
-          <div className="live-map-legend-row">
-            <span className="sw live-map-legend-swatch live-map-legend-swatch--unh" /> Unhealthy
-          </div>
-          <div className="live-map-legend-row">
-            <span className="sw live-map-legend-swatch live-map-legend-swatch--haz" /> Hazard
-          </div>
-          <div className="divider live-map-legend-divider" />
-          <div className="mono live-map-legend-meta">
-            Showing {visibleSensors.length} sensors · {liveMapClusters.length} clusters
-          </div>
-        </div>
       </div>
     </div>
   );

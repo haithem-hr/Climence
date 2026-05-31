@@ -75,6 +75,7 @@ interface Props {
   focusTarget?: { lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null;
   onViewportChange?: (viewport: { bounds: RiyadhMapBounds; zoom: number }) => void;
   onPickSensor: (sensor: RiyadhMapSensor) => void;
+  dataSource?: string;
 }
 
 const BAND_COLOR: Record<AqiBandKey, string> = {
@@ -155,6 +156,7 @@ export function RiyadhGoogleMap({
   focusTarget = null,
   onViewportChange,
   onPickSensor,
+  dataSource,
 }: Props) {
   const sortedSensors = useMemo(
     () => [...sensors].sort((a, b) => (b.aqi - aqiFallback(b)) - (a.aqi - aqiFallback(a))),
@@ -295,7 +297,7 @@ export function RiyadhGoogleMap({
           </Marker>
         ))}
 
-        {sortedSensors.map(sensor => {
+        {dataSource !== 'stationary' && sortedSensors.map(sensor => {
           const icon = sensorIcons.get(sensor.uuid);
           if (!icon) return null;
 

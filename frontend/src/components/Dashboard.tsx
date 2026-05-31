@@ -327,7 +327,7 @@ function MainContent({
       </div>
 
       <div className="stage">
-        <RiyadhGoogleMap mode={d.mode} sensors={d.sensors} hotspots={d.mapHotspots} heatmapPoints={d.mapHeatmapPoints} zoomPreset={d.zoomPreset} focusTarget={d.mapFocusTarget} onViewportChange={d.handleMapViewportChange} onPickSensor={d.handlePickSensor} />
+        <RiyadhGoogleMap mode={d.mode} sensors={d.sensors} hotspots={d.mapHotspots} heatmapPoints={d.mapHeatmapPoints} zoomPreset={d.zoomPreset} focusTarget={d.mapFocusTarget} onViewportChange={d.handleMapViewportChange} onPickSensor={d.handlePickSensor} dataSource={d.dataSource} />
 
         <div className="map-panel-tl">
           <div className="pollutants">
@@ -353,18 +353,6 @@ function MainContent({
           <div className="legend-scale tnum">{d.activeMetricConfig.legendStops.map(stop => (<span key={stop}>{stop}</span>))}</div>
           <div className="legend-direction">WORSE →</div>
           <div className="legend-bands">{AQI_BANDS.slice(0, 4).map(band => (<div key={band.key} className="legend-row"><span className="sw" style={{ background: `var(--aqi-${band.key})` }} /><span>{band.label}</span></div>))}</div>
-        </div>
-
-        <div className="map-panel-br glass" style={{ padding: '10px 14px', minWidth: 220 }}>
-          <div className="row-between">
-            <div><div className="eyebrow">Viewing</div><div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--ink-0)', letterSpacing: '-0.01em' }}>{d.sensorsInView.length} sensors in current bounds</div></div>
-            <div style={{ textAlign: 'right' }}><div className="eyebrow">Zoom</div><div className="mono tnum" style={{ fontSize: 13, color: 'var(--ink-1)' }}>{d.mapZoom.toFixed(1)}</div></div>
-          </div>
-          <div className="divider" style={{ margin: '10px 0' }} />
-          <div className="row-between" style={{ fontSize: 11.5 }}>
-            <span className="row-flex gap-tight"><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)' }} />{d.onlineSensorsInView} online</span>
-            <span className="row-flex gap-tight"><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink-3)', opacity: 0.6 }} />{Math.max(0, d.sensorsInView.length - d.onlineSensorsInView)} offline</span>
-          </div>
         </div>
 
         <div className="statusbar desktop-only">

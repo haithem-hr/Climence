@@ -5,13 +5,12 @@
  * Does NOT own: data logic (→ useDashboardData), layout (→ Shell), login (→ AuthScreen).
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Grid2x2, Layers } from 'lucide-react';
 import type { AuthUser } from '@climence/shared';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
 import { useDashboardData } from './hooks/useDashboardData';
 import { useStationaryHeatmap } from './hooks/useStationaryHeatmap';
 import { clearAuthSession, isSessionExpired, loadAuthSession } from './lib/auth-session';
-import { translate, type Locale } from './lib/i18n';
+import { type Locale } from './lib/i18n';
 import { MOCK_SNAPSHOT } from './lib/mockData';
 import { AuthScreen } from './components/AuthScreen';
 import { Shell } from './components/Shell';
@@ -108,20 +107,6 @@ export default function App() {
     return <AuthScreen onLogin={handleLogin} locale={locale} onToggleRtl={() => setRtl(prev => !prev)} />;
   }
 
-  /* ── Mode segment (lives in topbar, driven by dashboard data) ── */
-  const t = (key: Parameters<typeof translate>[0]) => translate(key, locale);
-
-  const modeSegment = (
-  <div className="seg desktop-only mode-segment">
-      <button className={`seg-btn ${data.mode === 'hardware' ? 'active' : ''}`} onClick={() => data.setMode('hardware')}>
-        <Grid2x2 size={12} /> {t('seg.hardware')}
-      </button>
-      <button className={`seg-btn ${data.mode === 'heatmap' ? 'active' : ''}`} onClick={() => data.setMode('heatmap')}>
-        <Layers size={12} /> {t('seg.heatmap')}
-      </button>
-    </div>
-  );
-
   return (
     <>
       <Shell
@@ -136,7 +121,7 @@ export default function App() {
         onToggleRtl={() => setRtl(prev => !prev)}
         onOpenReportModal={() => setReportModalOpen(true)}
         onLogout={handleLogout}
-        modeSegment={modeSegment}
+        modeSegment={null}
         currentTab={data.currentTab}
         onTabChange={data.setCurrentTab}
         dataSource={dataSource}

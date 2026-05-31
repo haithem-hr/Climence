@@ -616,20 +616,30 @@ export function useDashboardData(
 
   const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, pm10: pm10Now, co2: co2Now, no2: no2Now, o3: o3Now, so2: so2Now, co: coNow, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, humidityNow, no2Now, o3Now, pm10Now, pm25Now, so2Now, coNow, tempNow]);
 
-  const effectiveAlertThreshold = Number.isFinite(snapshot.alertThresholdPm25) && snapshot.alertThresholdPm25 > 0 ? snapshot.alertThresholdPm25 : alertThreshold;
+  const effectiveAlertThreshold =
+    dataSource === 'stationary'
+      ? alertThreshold
+      : Number.isFinite(snapshot.alertThresholdPm25) && snapshot.alertThresholdPm25 > 0
+        ? snapshot.alertThresholdPm25
+        : alertThreshold;
 
   const feed = useMemo<FeedItem[]>(() => {
-    if (snapshot.alerts.length > 0) {
-      return snapshot.alerts.map(alert => {
+    const alertsToUse =
+      dataSource === 'stationary'
+        ? sensors.filter(s => s.pm25 >= effectiveAlertThreshold && s.status !== 'offline')
+        : snapshot.alerts;
+
+    if (alertsToUse.length > 0) {
+      return alertsToUse.map(alert => {
         let severity: AlertSeverity = 'info';
         if (alert.pm25 >= effectiveAlertThreshold + 45) severity = 'crit';
         else if (alert.pm25 >= effectiveAlertThreshold) severity = 'warn';
         return {
-          id: `${alert.uuid}-${alert.id}`,
+          id: `${alert.uuid}-${alert.id ?? alert.uuid}`,
           severity,
           title: tFormat('feed.pm25Exceeded', locale, { value: `${Math.round(alert.pm25)} (AQI: ${Math.round(pm25ToAqi(alert.pm25))})` }),
           meta: `${alert.uuid} · ${alert.lat.toFixed(4)}, ${alert.lng.toFixed(4)}`,
-          time: formatAgo(alert.server_timestamp),
+          time: '1m',
           lat: alert.lat,
           lng: alert.lng,
           uuid: alert.uuid
@@ -645,7 +655,7 @@ export function useDashboardData(
       lat: h.lat,
       lng: h.lng
     }));
-  }, [effectiveAlertThreshold, hotspots, locale, snapshot.alerts]);
+  }, [effectiveAlertThreshold, hotspots, locale, snapshot.alerts, sensors, dataSource]);
 
   const liveAge = formatAgo(snapshot.emittedAt);
   const activePollutant = pollutantStats.find(s => s.key === pollutant)?.name ?? 'PM2.5';
@@ -708,6 +718,7 @@ export function useDashboardData(
     locale,
     currentTab, setCurrentTab,
     mode, setMode, pollutant, setPollutant, range, setRange,
+    dataSource,
     // sensors
     sensors, onlineSensors, sensorsInView, onlineSensorsInView,
     // hotspots
