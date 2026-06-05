@@ -4,7 +4,8 @@ export type LiveMapStatusFilter = 'all' | 'online' | 'offline';
 
 export interface LiveMapFilterState {
   status: LiveMapStatusFilter;
-  minPm25?: number;
+  pollutant?: string;
+  minPollutant?: number;
   lowBatteryOnly?: boolean;
   batteryThreshold?: number;
 }
@@ -52,7 +53,10 @@ export function filterLiveMapSensors(
     if (filter.status === 'online' && sensor.status === 'offline') return false;
     if (filter.status === 'offline' && sensor.status !== 'offline') return false;
 
-    if (typeof filter.minPm25 === 'number' && sensor.pm25 < filter.minPm25) return false;
+    if (typeof filter.minPollutant === 'number' && filter.pollutant) {
+      const val = (sensor as any)[filter.pollutant];
+      if (typeof val === 'number' && val < filter.minPollutant) return false;
+    }
 
     if (filter.lowBatteryOnly) {
       const threshold = typeof filter.batteryThreshold === 'number' ? filter.batteryThreshold : 35;

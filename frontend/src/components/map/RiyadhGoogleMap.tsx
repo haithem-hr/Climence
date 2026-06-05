@@ -43,6 +43,7 @@ export interface RiyadhMapSensor {
   o3: number;
   so2: number;
   co: number;
+  dust: number;
   temperature: number;
   humidity: number;
   battery: number;
@@ -322,7 +323,7 @@ export function RiyadhGoogleMap({
                 <div className="map-sensor-tooltip-meta">{describeDroneState(sensor)}</div>
               </Tooltip>
               <Popup>
-                <SensorPopupContent sensor={sensor} />
+                <SensorPopupContent sensor={sensor} isStationary={dataSource === 'stationary'} />
               </Popup>
             </Marker>
           );
@@ -337,7 +338,7 @@ function aqiFallback(sensor: RiyadhMapSensor) {
   return sensor.status === 'offline' ? 30 : 0;
 }
 
-function SensorPopupContent({ sensor }: { sensor: RiyadhMapSensor }) {
+function SensorPopupContent({ sensor, isStationary }: { sensor: RiyadhMapSensor; isStationary: boolean }) {
   const { data: omData } = useOpenMeteoAirQuality(sensor.lat, sensor.lng);
 
   return (
@@ -345,7 +346,7 @@ function SensorPopupContent({ sensor }: { sensor: RiyadhMapSensor }) {
       <strong style={{ fontSize: 14 }}>{sensor.label}</strong>
       <div style={{ marginTop: 4, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
         <div style={{ fontWeight: 600 }}>AQI {Math.round(sensor.aqi)} · PM2.5 {sensor.pm25.toFixed(1)} µg/m³</div>
-        <div style={{ color: 'var(--ink-3)' }}>{describeDroneState(sensor)}</div>
+        {!isStationary && <div style={{ color: 'var(--ink-3)' }}>{describeDroneState(sensor)}</div>}
       </div>
 
       {omData?.current ? (

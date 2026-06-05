@@ -225,18 +225,20 @@ export function Shell({
 
         <div className="nav-section">
           <div className="nav-section-title">{t('nav.operate')}</div>
-          <button
-            className={`nav-item ${currentTab === 'sensors' ? 'active' : ''}`}
-            onClick={() => onTabChange('sensors')}
-            title={t('nav.gridSensors')}
-            data-tooltip={t('nav.gridSensors')}
-          >
-            <Radio size={16} />
-            <span className="nav-label">{t('nav.gridSensors')}</span>
-            <span className="count tnum">
-              {onlineSensors}/{totalSensors || 0}
-            </span>
-          </button>
+          {dataSource !== 'stationary' && (
+            <button
+              className={`nav-item ${currentTab === 'sensors' ? 'active' : ''}`}
+              onClick={() => onTabChange('sensors')}
+              title={t('nav.gridSensors')}
+              data-tooltip={t('nav.gridSensors')}
+            >
+              <Radio size={16} />
+              <span className="nav-label">{t('nav.gridSensors')}</span>
+              <span className="count tnum">
+                {onlineSensors}/{totalSensors || 0}
+              </span>
+            </button>
+          )}
           <button
             className={`nav-item ${currentTab === 'reports' ? 'active' : ''}`}
             onClick={() => onTabChange('reports')}

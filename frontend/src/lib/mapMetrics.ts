@@ -1,6 +1,6 @@
 import { aqiBandFor, pm25ToAqi, type AqiBandKey } from '@climence/shared';
 
-export type MapMetricKey = 'pm25' | 'pm10' | 'co2' | 'no2' | 'o3' | 'so2' | 'co' | 'temperature' | 'humidity' | 'battery';
+export type MapMetricKey = 'pm25' | 'pm10' | 'co2' | 'no2' | 'o3' | 'so2' | 'co' | 'dust' | 'temperature' | 'humidity' | 'battery';
 
 export interface MetricSample {
   pm25: number;
@@ -10,6 +10,7 @@ export interface MetricSample {
   o3: number;
   so2: number;
   co: number;
+  dust: number;
   temperature: number;
   humidity: number;
   battery: number;
@@ -105,6 +106,17 @@ const MAP_METRIC_CONFIG: Record<MapMetricKey, MapMetricConfig> = {
     max: 10,
     accessor: sample => sample.co,
     format: value => value.toFixed(1),
+  },
+  dust: {
+    key: 'dust',
+    label: 'Dust',
+    unit: 'ug/m3',
+    legendTitle: 'Dust · live ug/m3',
+    legendStops: ['0', '50', '100', '150', '200', '300+'],
+    min: 0,
+    max: 300,
+    accessor: sample => sample.dust,
+    format: value => Math.round(value).toString(),
   },
   temperature: {
     key: 'temperature',

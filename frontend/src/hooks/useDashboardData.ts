@@ -73,6 +73,7 @@ export interface SensorPoint {
   o3: number;
   so2: number;
   co: number;
+  dust: number;
   temperature: number;
   humidity: number;
   battery: number;
@@ -249,6 +250,7 @@ function toSensorPoint(drone: TelemetryRecord, index: number, missions?: { targe
     o3: drone.o3 ?? 0,
     so2: drone.so2 ?? 0,
     co: drone.co ?? 0,
+    dust: 0,
     temperature: drone.temperature, humidity: drone.humidity,
     battery: drone.batteryLevel, rssi: drone.rssi,
     droneState: drone.state,
