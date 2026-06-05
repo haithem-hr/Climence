@@ -135,47 +135,25 @@ function SensorCard({ sensor, i, d, onShowDetail }: { sensor: RiyadhMapSensor; i
         >
           <Activity size={14} /> {d.t('sensors.seeDetails')}
         </button>
-        <div className="flex gap-2">
-          <button
-            disabled={sensor.status === 'offline' || sensor.status === 'mission'}
-            onClick={() => {
-              d.handleDispatchDrone(sensor.uuid, sensor.label, sensor.lat, sensor.lng);
-            }}
-            style={{
-              backgroundColor: sensor.status === 'offline' ? 'rgba(128,128,128,0.1)' : sensor.status === 'mission' ? 'rgba(59,130,246,0.1)' : 'rgba(239, 68, 68, 0.1)',
-              color: sensor.status === 'offline' ? 'var(--ink-3)' : sensor.status === 'mission' ? '#3b82f6' : 'var(--danger)',
-              border: sensor.status === 'offline' ? '1px solid var(--line)' : sensor.status === 'mission' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              fontSize: '12px',
-              fontWeight: '700',
-              transition: 'all 0.2s'
-            }}
-            className="hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sensor.status === 'offline' ? d.t('alerts.onlineOnly') : sensor.status === 'mission' ? d.t('sensors.mission') : d.t('alerts.dispatchDrone')}
-          </button>
-
-          <button
-            onClick={() => {
-              d.handlePickSensor(sensor);
-              d.setCurrentTab('livemap');
-            }}
-            style={{
-              backgroundColor: 'var(--ok)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              fontSize: '12px',
-              fontWeight: '700',
-              boxShadow: '0 4px 12px oklch(from var(--ok) l c h / 0.25)',
-              transition: 'all 0.2s'
-            }}
-            className="hover:opacity-90"
-          >
-            {d.t('btn.onMap')}
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            d.handlePickSensor(sensor);
+            d.setCurrentTab('livemap');
+          }}
+          style={{
+            backgroundColor: 'var(--ok)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: '700',
+            boxShadow: '0 4px 12px oklch(from var(--ok) l c h / 0.25)',
+            transition: 'all 0.2s'
+          }}
+          className="hover:opacity-90"
+        >
+          {d.t('btn.onMap')}
+        </button>
       </div>
     </div>
   );
@@ -300,32 +278,6 @@ function SensorDetailDialog({ isOpen, onClose, sensor, d }: { isOpen: boolean; o
 
           {/* Action Footer */}
           <div className="flex gap-3 pt-4 border-t border-[var(--line)]">
-            <button
-              disabled={sensor.status === 'offline' || sensor.status === 'mission'}
-              onClick={() => {
-                d.handleDispatchDrone(sensor.uuid, sensor.label, sensor.lat, sensor.lng);
-                onClose();
-              }}
-              style={{
-                backgroundColor: sensor.status === 'offline' ? 'rgba(128,128,128,0.1)' : sensor.status === 'mission' ? 'rgba(59,130,246,0.1)' : 'rgba(239, 68, 68, 0.1)',
-                color: sensor.status === 'offline' ? 'var(--ink-3)' : sensor.status === 'mission' ? '#3b82f6' : 'var(--danger)',
-                border: sensor.status === 'offline' ? '1px solid var(--line)' : sensor.status === 'mission' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
-                padding: '16px',
-                borderRadius: '16px',
-                fontSize: '14px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                flex: 1,
-                transition: 'all 0.2s'
-              }}
-              className="hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sensor.status === 'offline' ? d.t('alerts.onlineOnly') : sensor.status === 'mission' ? d.t('sensors.mission') : d.t('alerts.dispatchDrone')}
-            </button>
-
             <button
               onClick={() => {
                 d.handlePickSensor(sensor);
