@@ -528,7 +528,7 @@ export function useDashboardData(
     fetchHistory(sourceUuid, authToken)
       .then(rows => {
         if (cancelled) return;
-        const history = rows.map(row => getMapMetricValue(selectedHotspot.metricKey, { pm25: row.pm25, pm10: row.pm10 ?? row.pm25 * 1.2, co2: row.co2, no2: row.no2, o3: row.o3 ?? 0, so2: row.so2 ?? 0, co: row.co ?? 0, temperature: row.temperature, humidity: row.humidity, battery: row.batteryLevel }));
+        const history = rows.map(row => getMapMetricValue(selectedHotspot.metricKey, { pm25: row.pm25, pm10: row.pm10 ?? row.pm25 * 1.2, co2: row.co2, no2: row.no2, o3: row.o3 ?? 0, so2: row.so2 ?? 0, co: row.co ?? 0, dust: 0, temperature: row.temperature, humidity: row.humidity, battery: row.batteryLevel }));
         setHistorySeries(history.length > 1 ? history : fallback);
         setHistorySourceUuid(sourceUuid);
       })
@@ -598,6 +598,7 @@ export function useDashboardData(
   const o3Now = Math.round(average(sensors.map(s => s.o3 ?? 0)) || 0);
   const so2Now = Math.round(average(sensors.map(s => s.so2 ?? 0)) || 0);
   const coNow = Math.round(average(sensors.map(s => s.co ?? 0)) || 0);
+  const dustNow = Math.round(average(sensors.map(s => s.dust ?? 0)) || 0);
   const tempNow = Math.round(average(sensors.map(s => s.temperature)) || 0);
   const humidityNow = Math.round(average(sensors.map(s => s.humidity)) || 0);
   const batteryNow = Math.round(average(sensors.map(s => s.battery)) || 0);
@@ -611,12 +612,13 @@ export function useDashboardData(
     { key: 'o3', name: 'O3', unit: 'ug/m3', value: o3Now, delta: Math.round(((o3Now - 60) / 60) * 10), pct: clamp((o3Now / 180) * 100, 4, 100) },
     { key: 'so2', name: 'SO2', unit: 'ug/m3', value: so2Now, delta: Math.round(((so2Now - 10) / 10) * 8), pct: clamp((so2Now / 50) * 100, 4, 100) },
     { key: 'co', name: 'CO', unit: 'mg/m3', value: coNow, delta: Math.round(((coNow - 2) / 2) * 6), pct: clamp((coNow / 10) * 100, 4, 100) },
+    { key: 'dust', name: 'Dust', unit: 'ug/m3', value: dustNow, delta: Math.round(((dustNow - 50) / 50) * 8), pct: clamp((dustNow / 300) * 100, 4, 100) },
     { key: 'temperature', name: t('sensors.temp'), unit: 'degC', value: tempNow, delta: Math.round(((tempNow - 30) / 30) * 8), pct: clamp((tempNow / 45) * 100, 4, 100) },
     { key: 'humidity', name: t('weather.humidity'), unit: '%', value: humidityNow, delta: Math.round(((humidityNow - 35) / 35) * 8), pct: clamp((humidityNow / 100) * 100, 4, 100) },
     { key: 'battery', name: t('sensors.battery'), unit: '%', value: batteryNow, delta: Math.round(((batteryNow - 60) / 60) * 6), pct: clamp((batteryNow / 100) * 100, 4, 100) },
-  ], [batteryNow, co2Now, humidityNow, no2Now, o3Now, pm10Now, pm25Now, pm25Series, so2Now, coNow, t, tempNow]);
+  ], [batteryNow, co2Now, dustNow, humidityNow, no2Now, o3Now, pm10Now, pm25Now, pm25Series, so2Now, coNow, t, tempNow]);
 
-  const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, pm10: pm10Now, co2: co2Now, no2: no2Now, o3: o3Now, so2: so2Now, co: coNow, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, humidityNow, no2Now, o3Now, pm10Now, pm25Now, so2Now, coNow, tempNow]);
+  const pollutantMap = useMemo<Record<PollutantKey, number>>(() => ({ pm25: pm25Now, pm10: pm10Now, co2: co2Now, no2: no2Now, o3: o3Now, so2: so2Now, co: coNow, dust: dustNow, temperature: tempNow, humidity: humidityNow, battery: batteryNow }), [batteryNow, co2Now, dustNow, humidityNow, no2Now, o3Now, pm10Now, pm25Now, so2Now, coNow, tempNow]);
 
   const effectiveAlertThreshold =
     dataSource === 'stationary'
@@ -669,7 +671,7 @@ export function useDashboardData(
   const handlePickSensor = useCallback((sensor: RiyadhMapSensor) => {
     const source = sensors.find(item => item.uuid === sensor.uuid);
     const id = source?.id ?? `S-${sensor.uuid.slice(-4).toUpperCase()}`;
-    const metricValue = getMapMetricValue(pollutant, source ?? { pm25: sensor.pm25, pm10: sensor.pm10 ?? sensor.pm25 * 1.2, co2: 0, no2: 0, o3: 0, so2: 0, co: 0, temperature: 0, humidity: 0, battery: sensor.battery });
+    const metricValue = getMapMetricValue(pollutant, source ?? { pm25: sensor.pm25, pm10: sensor.pm10 ?? sensor.pm25 * 1.2, co2: 0, no2: 0, o3: 0, so2: 0, co: 0, dust: 0, temperature: 0, humidity: 0, battery: sensor.battery });
     setSelected({ id, name: sensor.label, coord: formatCoord(sensor.lat, sensor.lng), lat: sensor.lat, lng: sensor.lng, aqi: sensor.aqi, metricKey: pollutant, metricLabel: activeMetricConfig.label, metricUnit: activeMetricConfig.unit, metricValue, metricDisplayValue: formatMetricValue(pollutant, metricValue), band: bandForMetricValue(pollutant, metricValue), trend: Math.round((metricValue % 15) - 4), pollutant: activeMetricConfig.label, sourceUuid: sensor.uuid });
     setZoomPreset('zone');
     setMapFocusTarget({ lat: sensor.lat, lng: sensor.lng, zoom: 14, nonce: Date.now(), uuid: sensor.uuid });
