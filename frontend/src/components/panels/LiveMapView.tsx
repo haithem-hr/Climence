@@ -21,8 +21,10 @@ import {
 import type { useDashboardData } from '../../hooks/useDashboardData';
 
 const LIVE_MAP_PRESETS_KEY = 'climence.live-map.presets.v1';
+const LIVE_MAP_POLLUTANTS = ['pm25', 'pm10', 'o3', 'no2', 'co', 'so2', 'dust'] as const;
 
 type DashboardData = ReturnType<typeof useDashboardData>;
+type LiveMapPollutant = (typeof LIVE_MAP_POLLUTANTS)[number];
 
 interface LiveMapViewProps {
   data: DashboardData;
@@ -40,9 +42,13 @@ function makePresetName(existing: SavedViewPreset[]) {
   return `Preset ${existing.length + 1}`;
 }
 
+function isLiveMapPollutant(value: string | undefined): value is LiveMapPollutant {
+  return LIVE_MAP_POLLUTANTS.includes(value as LiveMapPollutant);
+}
+
 export function LiveMapView({ data }: LiveMapViewProps) {
   const [statusFilter, setStatusFilter] = useState<LiveMapStatusFilter>('all');
-  const [selectedPollutant, setSelectedPollutant] = useState<'pm25' | 'o3' | 'no2' | 'co' | 'so2' | 'dust'>('pm25');
+  const [selectedPollutant, setSelectedPollutant] = useState<LiveMapPollutant>('pm25');
   const [minPollutant, setMinPollutant] = useState(0);
   const [lowBatteryOnly, setLowBatteryOnly] = useState(false);
   const [batteryThreshold, setBatteryThreshold] = useState(30);
@@ -50,8 +56,9 @@ export function LiveMapView({ data }: LiveMapViewProps) {
 
   const isStationary = data.dataSource === 'stationary';
 
-  const THRESHOLDS: Record<string, number[]> = {
+  const THRESHOLDS: Record<LiveMapPollutant, number[]> = {
     pm25: [0, 35, 75, 120],
+    pm10: [0, 50, 100, 150],
     o3: [0, 60, 100, 160],
     no2: [0, 40, 70, 200],
     co: [0, 4, 9, 15],
@@ -68,7 +75,8 @@ export function LiveMapView({ data }: LiveMapViewProps) {
     if (typeof window === 'undefined') return [];
     return parseSavedViewPresets(window.localStorage.getItem(LIVE_MAP_PRESETS_KEY));
   });
-  const [localFocusTarget, setLocalFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number } | null>(null);
+  const [localFocusTarget, setLocalFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
+  const [temporaryHighlight, setTemporaryHighlight] = useState<{ lat: number; lng: number; nonce: number } | null>(null);
 
   useEffect(() => {
     const nextFrame: ReplayFrame = {
@@ -96,6 +104,59 @@ export function LiveMapView({ data }: LiveMapViewProps) {
     window.localStorage.setItem(LIVE_MAP_PRESETS_KEY, serializeSavedViewPresets(savedPresets));
   }, [savedPresets]);
 
+  const liveMapFocusRequest = data.liveMapFocusRequest;
+  const clearLiveMapFocusRequest = data.clearLiveMapFocusRequest;
+  const handlePickSensor = data.handlePickSensor;
+  const sensors = data.sensors;
+
+  useEffect(() => {
+    const request = liveMapFocusRequest;
+    if (!request) return;
+
+    const timer = window.setTimeout(() => {
+      if (isLiveMapPollutant(request.focusPollutant)) {
+        setSelectedPollutant(request.focusPollutant);
+        setMinPollutant(0);
+      }
+
+      if (request.focusSensorId) {
+        const sensor = sensors.find(item => item.uuid === request.focusSensorId || item.id === request.focusSensorId);
+        if (sensor) {
+          handlePickSensor(sensor);
+          setLocalFocusTarget({ lat: sensor.lat, lng: sensor.lng, zoom: 16, nonce: request.nonce, uuid: sensor.uuid });
+          setTemporaryHighlight(null);
+          clearLiveMapFocusRequest();
+          return;
+        }
+
+        if (!request.focusCoords) {
+          if (sensors.length === 0) return;
+          clearLiveMapFocusRequest();
+          return;
+        }
+      }
+
+      if (request.focusCoords) {
+        setLocalFocusTarget({ ...request.focusCoords, zoom: 16, nonce: request.nonce });
+        setTemporaryHighlight({ ...request.focusCoords, nonce: request.nonce });
+        clearLiveMapFocusRequest();
+        return;
+      }
+
+      clearLiveMapFocusRequest();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [clearLiveMapFocusRequest, handlePickSensor, liveMapFocusRequest, sensors]);
+
+  useEffect(() => {
+    if (!temporaryHighlight) return;
+    const timer = window.setTimeout(() => {
+      setTemporaryHighlight(null);
+    }, 4500);
+    return () => window.clearTimeout(timer);
+  }, [temporaryHighlight]);
+
   const replaySensors = playbackEnabled ? frames[playbackIndex]?.sensors ?? data.sensors : data.sensors;
 
   const filteredSensors = useMemo(
@@ -103,11 +164,11 @@ export function LiveMapView({ data }: LiveMapViewProps) {
       filterLiveMapSensors(replaySensors, {
         status: statusFilter,
         pollutant: selectedPollutant,
-        minPollutant: minPollutant,
+        minPollutant,
         lowBatteryOnly,
         batteryThreshold,
       }),
-    [batteryThreshold, lowBatteryOnly, minPollutant, selectedPollutant, replaySensors, statusFilter],
+    [batteryThreshold, lowBatteryOnly, minPollutant, replaySensors, selectedPollutant, statusFilter],
   );
 
   const clusters = useMemo(
@@ -122,10 +183,20 @@ export function LiveMapView({ data }: LiveMapViewProps) {
     return filteredSensors.filter(sensor => !clusteredMembers.has(sensor.uuid));
   }, [clusterEnabled, clusteredMembers, filteredSensors]);
 
+  const focusUuid = localFocusTarget?.uuid;
+  const mapSensors = useMemo(() => {
+    if (!focusUuid) return visibleSensors;
+    if (visibleSensors.some(sensor => sensor.uuid === focusUuid)) return visibleSensors;
+
+    const focusedSensor = replaySensors.find(sensor => sensor.uuid === focusUuid);
+    return focusedSensor ? [...visibleSensors, focusedSensor] : visibleSensors;
+  }, [focusUuid, replaySensors, visibleSensors]);
+
   const playbackHeatmapPoints = useMemo<HeatmapPoint[]>(
     () => {
       const metricValueForSensor = (sensor: RiyadhMapSensor) => {
         if (selectedPollutant === 'pm25') return sensor.pm25;
+        if (selectedPollutant === 'pm10') return sensor.pm10;
         if (selectedPollutant === 'o3') return sensor.o3;
         if (selectedPollutant === 'no2') return sensor.no2;
         if (selectedPollutant === 'co') return sensor.co;
@@ -140,7 +211,7 @@ export function LiveMapView({ data }: LiveMapViewProps) {
         intensity: heatIntensityForMetric(selectedPollutant, metricValueForSensor(sensor)),
       }));
     },
-    [selectedPollutant, filteredSensors],
+    [filteredSensors, selectedPollutant],
   );
 
   const liveMapClusters: RiyadhMapCluster[] = useMemo(
@@ -213,20 +284,16 @@ export function LiveMapView({ data }: LiveMapViewProps) {
             </div>
           )}
 
-          <div className="live-map-chip-group" title={isStationary ? "Switch to Live mode to change pollutants" : undefined}>
+          <div className="live-map-chip-group">
             <span className="eyebrow">Pollutant</span>
-            {(['pm25', 'o3', 'no2', 'co', 'so2', 'dust'] as const).map(poll => (
+            {LIVE_MAP_POLLUTANTS.map(poll => (
               <button
                 key={poll}
                 className={`live-map-chip ${selectedPollutant === poll ? 'active' : ''}`}
                 onClick={() => {
-                  if (!isStationary) {
-                    setSelectedPollutant(poll);
-                    setMinPollutant(0);
-                  }
+                  setSelectedPollutant(poll);
+                  setMinPollutant(0);
                 }}
-                disabled={isStationary}
-                style={isStationary ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
                 {poll.toUpperCase()}
               </button>
@@ -321,12 +388,13 @@ export function LiveMapView({ data }: LiveMapViewProps) {
       <div className="live-map-stage">
         <RiyadhGoogleMap
           mode={data.mode}
-          sensors={visibleSensors as RiyadhMapSensor[]}
+          sensors={mapSensors as RiyadhMapSensor[]}
           hotspots={data.mapHotspots}
           clusters={data.mode === 'hardware' ? liveMapClusters : []}
           heatmapPoints={playbackHeatmapPoints}
           zoomPreset={data.zoomPreset}
           focusTarget={activeFocusTarget}
+          focusHighlight={temporaryHighlight}
           onViewportChange={data.handleMapViewportChange}
           onPickSensor={data.handlePickSensor}
           dataSource={data.dataSource}

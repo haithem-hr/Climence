@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RIYADH_BOUNDS } from '@climence/shared';
 import type { HeatmapPoint } from '../components/map/HeatmapLayer';
-import { fetchOpenMeteoHistory } from '../api/client';
+import { getMapMetricValue, heatIntensityForMetric, type MapMetricKey, type MetricSample } from '../lib/mapMetrics';
+import { fetchOpenMeteoHistory, type OpenMeteoHistoryPoint } from '../api/client';
 
 type State =
   | { status: 'idle'; points: HeatmapPoint[] }
@@ -13,22 +14,57 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function latestPm25(points: Array<{ pm25: number }>) {
+function finiteOrFallback(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function sampleFromOpenMeteo(point: OpenMeteoHistoryPoint): MetricSample {
+  const extra = point as Partial<MetricSample>;
+  const pm25 = finiteOrFallback(point.pm25, 0);
+  const pm10 = finiteOrFallback(point.pm10, pm25 * 1.18);
+  const co2 = finiteOrFallback(point.co2, 420 + pm25 * 2);
+  const no2 = finiteOrFallback(point.no2, pm25 * 0.45);
+  const dust = finiteOrFallback(point.dust, pm10 * 0.4);
+  const pollutionRatio = clamp(pm25 / 180, 0, 1);
+
+  return {
+    pm25,
+    pm10,
+    co2,
+    no2,
+    o3: finiteOrFallback(extra.o3, pm25 * 0.3),
+    so2: finiteOrFallback(extra.so2, pm25 * 0.08),
+    co: finiteOrFallback(extra.co, pm25 * 0.02),
+    dust,
+    temperature: finiteOrFallback(extra.temperature, 32 + pollutionRatio * 8),
+    humidity: finiteOrFallback(extra.humidity, 45 - pollutionRatio * 25),
+    battery: finiteOrFallback(extra.battery, 100),
+  };
+}
+
+function getMetricValue(points: OpenMeteoHistoryPoint[], metric: MapMetricKey): number {
   for (let i = points.length - 1; i >= 0; i -= 1) {
-    const v = points[i]?.pm25;
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    const point = points[i];
+    if (!point) continue;
+
+    const value = getMapMetricValue(metric, sampleFromOpenMeteo(point));
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
   }
   return 0;
 }
 
 /**
  * Stationary heatmap = a synthetic spatial field over Riyadh derived from the
- * latest Open‑Meteo PM2.5 reading.
+ * latest Open‑Meteo metric reading (configurable per selected pollutant).
  *
  * Open‑Meteo is a single coordinate time series, so we generate a small grid
  * and apply a smooth radial falloff around the city center.
  */
-export function useStationaryHeatmap(authToken: string, enabled: boolean) {
+export function useStationaryHeatmap(
+  authToken: string,
+  enabled: boolean,
+  selectedPollutant: MapMetricKey = 'pm25',
+) {
   const [state, setState] = useState<State>({ status: 'idle', points: [] });
 
   useEffect(() => {
@@ -41,10 +77,11 @@ export function useStationaryHeatmap(authToken: string, enabled: boolean) {
     fetchOpenMeteoHistory('1h', authToken)
       .then(history => {
         if (cancelled) return;
-        const pm25 = latestPm25(history);
+        const metricValue = getMetricValue(history, selectedPollutant);
 
-        // Scale into [0.2, 1.0] intensity-ish range using a conservative envelope.
-        const base = clamp(pm25 / 180, 0.2, 1.0);
+        // Scale into [0.2, 1.0] intensity-ish range using heatIntensityForMetric.
+        const intensity = heatIntensityForMetric(selectedPollutant, metricValue);
+        const base = clamp(intensity, 0.2, 1.0);
 
         const centerLat = (RIYADH_BOUNDS.minLat + RIYADH_BOUNDS.maxLat) / 2;
         const centerLng = (RIYADH_BOUNDS.minLng + RIYADH_BOUNDS.maxLng) / 2;
@@ -65,8 +102,8 @@ export function useStationaryHeatmap(authToken: string, enabled: boolean) {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             // Radial falloff, keeps intensity highest in the core.
-            const intensity = clamp(base * (1 - dist * 1.35), 0.05, 1);
-            next.push({ lat, lng, intensity });
+            const cellIntensity = clamp(base * (1 - dist * 1.35), 0.05, 1);
+            next.push({ lat, lng, intensity: cellIntensity });
           }
         }
 
@@ -80,7 +117,7 @@ export function useStationaryHeatmap(authToken: string, enabled: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [authToken, enabled]);
+  }, [authToken, enabled, selectedPollutant]);
 
   const points = useMemo(() => state.points, [state.points]);
   return { status: state.status, points };

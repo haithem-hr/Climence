@@ -7,10 +7,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthUser } from '@climence/shared';
 import { useLiveTelemetry } from './hooks/useLiveTelemetry';
-import { useDashboardData } from './hooks/useDashboardData';
+import { DASHBOARD_STORAGE_KEYS, useDashboardData, type PollutantKey } from './hooks/useDashboardData';
 import { useStationaryHeatmap } from './hooks/useStationaryHeatmap';
 import { clearAuthSession, isSessionExpired, loadAuthSession } from './lib/auth-session';
 import { type Locale } from './lib/i18n';
+import { isMapMetricKey } from './lib/mapMetrics';
 import { MOCK_SNAPSHOT } from './lib/mockData';
 import { AuthScreen } from './components/AuthScreen';
 import { Shell } from './components/Shell';
@@ -24,6 +25,11 @@ import { ReportsView } from './components/panels/ReportsView';
 
 export type DataSource = 'live' | 'stationary';
 const DS_KEY = 'climence.data-source';
+
+function loadInitialPollutant(): PollutantKey {
+  const stored = typeof window !== 'undefined' ? window.localStorage.getItem(DASHBOARD_STORAGE_KEYS.POLLUTANT) : null;
+  return isMapMetricKey(stored) ? stored : 'pm25';
+}
 
 /* ═══════════════════════════ SESSION INIT ═══════════════════════════ */
 
@@ -64,6 +70,7 @@ export default function App() {
   const [rtl, setRtl] = useState(false);
   const locale: Locale = rtl ? 'ar' : 'en';
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [pollutant, setPollutant] = useState<PollutantKey>(loadInitialPollutant);
 
   useEffect(() => {
     document.documentElement.setAttribute('dir', rtl ? 'rtl' : 'ltr');
@@ -77,7 +84,7 @@ export default function App() {
   // topbar connection indicator still reflects the real WS state.
   const snapshot = dataSource === 'stationary' ? MOCK_SNAPSHOT : liveSnapshot;
 
-  const stationaryHeatmap = useStationaryHeatmap(authToken ?? '', dataSource === 'stationary' && Boolean(authToken));
+  const stationaryHeatmap = useStationaryHeatmap(authToken ?? '', dataSource === 'stationary' && Boolean(authToken), pollutant);
 
   /* ── Data hook (only runs when authenticated) ── */
   const data = useDashboardData(
@@ -88,6 +95,8 @@ export default function App() {
     locale,
     dataSource,
     stationaryHeatmap.points,
+    pollutant,
+    setPollutant,
   );
 
   /* ── Handlers ── */

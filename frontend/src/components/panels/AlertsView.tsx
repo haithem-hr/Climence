@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import type { AlertPollutantType } from '@climence/shared';
+import type { AlertEvent, AlertPollutantType } from '@climence/shared';
 import type { DashboardData } from '../../hooks/useDashboardData';
-import { AlertTriangle, Activity, Settings, Siren, Zap, Trash2 } from 'lucide-react';
+import { AlertTriangle, Activity, ArrowUpRight, Settings, Siren, Zap, Trash2 } from 'lucide-react';
+import { getMapMetricValue } from '../../lib/mapMetrics';
 
 const POLLUTANT_OPTIONS: Array<{ key: AlertPollutantType; label: string; unit: string }> = [
   { key: 'pm25', label: 'PM2.5', unit: 'µg/m³' },
@@ -19,6 +20,69 @@ function formatDate(value?: string | null) {
 
 function pollutantLabel(key?: string) {
   return POLLUTANT_OPTIONS.find(option => option.key === key)?.label ?? key?.toUpperCase() ?? '--';
+}
+
+type AlertFocusFields = Partial<{
+  sensorId: string;
+  sensor_id: string;
+  uuid: string;
+  lat: number;
+  lng: number;
+  latitude: number;
+  longitude: number;
+}>;
+
+function finiteCoord(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function alertFocusRequest(event: AlertEvent) {
+  const focusFields = event as AlertEvent & AlertFocusFields;
+  const lat = finiteCoord(focusFields.lat) ?? finiteCoord(focusFields.latitude);
+  const lng = finiteCoord(focusFields.lng) ?? finiteCoord(focusFields.longitude);
+
+  return {
+    focusSensorId: focusFields.sensorId ?? focusFields.sensor_id ?? focusFields.uuid,
+    focusCoords: lat !== undefined && lng !== undefined ? { lat, lng } : undefined,
+    focusPollutant: event.pollutant_type,
+  };
+}
+
+type AlertSensor = DashboardData['sensors'][number];
+
+function crossesAlertRule(value: number, event: AlertEvent) {
+  const threshold = event.threshold_value;
+  const operator = event.condition_operator ?? '>';
+  if (typeof threshold !== 'number' || !Number.isFinite(threshold)) return false;
+
+  if (operator === '>') return value > threshold;
+  if (operator === '>=') return value >= threshold;
+  if (operator === '<') return value < threshold;
+  return value <= threshold;
+}
+
+function sensorForAlert(event: AlertEvent, sensors: AlertSensor[]) {
+  const pollutantType = event.pollutant_type;
+  if (!pollutantType || sensors.length === 0) return null;
+  const targetValue = Number.isFinite(event.peak_value) ? event.peak_value : event.threshold_value;
+  if (typeof targetValue !== 'number' || !Number.isFinite(targetValue)) return null;
+
+  return [...sensors]
+    .sort((left, right) => {
+      const leftValue = getMapMetricValue(pollutantType, left);
+      const rightValue = getMapMetricValue(pollutantType, right);
+      const leftCrosses = crossesAlertRule(leftValue, event) ? 0 : 1;
+      const rightCrosses = crossesAlertRule(rightValue, event) ? 0 : 1;
+      if (leftCrosses !== rightCrosses) return leftCrosses - rightCrosses;
+
+      const leftDelta = Math.abs(leftValue - targetValue);
+      const rightDelta = Math.abs(rightValue - targetValue);
+      if (leftDelta !== rightDelta) return leftDelta - rightDelta;
+
+      const leftOffline = left.status === 'offline' ? 1 : 0;
+      const rightOffline = right.status === 'offline' ? 1 : 0;
+      return leftOffline - rightOffline;
+    })[0] ?? null;
 }
 
 export function AlertsView({ data: d }: { data: DashboardData }) {
@@ -44,6 +108,20 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
       notification_channel: 'system',
       is_active: true,
     });
+  }
+
+  function openAlertOnMap(event: AlertEvent) {
+    const request = alertFocusRequest(event);
+    const sensor = request.focusSensorId
+      ? d.sensors.find(item => item.uuid === request.focusSensorId || item.id === request.focusSensorId)
+      : sensorForAlert(event, d.sensors);
+
+    d.requestLiveMapFocus({
+      ...request,
+      focusSensorId: request.focusSensorId ?? sensor?.uuid,
+      focusCoords: request.focusCoords ?? (sensor ? { lat: sensor.lat, lng: sensor.lng } : undefined),
+    });
+    d.setCurrentTab('livemap');
   }
 
   return (
@@ -97,7 +175,12 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                   </li>
                 ) : (
                   d.activeAlertEvents.map(event => (
-                    <li key={event.event_id} className="p-5 rounded-2xl bg-[var(--bg-0)] border border-[var(--danger-20)] shadow-sm">
+                    <li key={event.event_id} className="group p-5 rounded-2xl bg-[var(--bg-0)] border border-[var(--danger-20)] shadow-sm cursor-pointer transition-shadow hover:shadow-md">
+                      <button
+                        type="button"
+                        onClick={() => openAlertOnMap(event)}
+                        className="w-full text-left"
+                      >
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
@@ -111,8 +194,12 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                             Peak value {Math.round(event.peak_value * 10) / 10} · Rule #{event.rule_id}
                           </div>
                         </div>
-                        <AlertTriangle className="text-[var(--danger)] shrink-0" size={22} />
+                        <div className="flex items-center gap-2 shrink-0">
+                          <ArrowUpRight className="text-[var(--ink-3)] opacity-0 transition-opacity group-hover:opacity-100" size={16} />
+                          <AlertTriangle className="text-[var(--danger)]" size={22} />
+                        </div>
                       </div>
+                      </button>
                     </li>
                   ))
                 )}
@@ -130,7 +217,12 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                   </li>
                 ) : (
                   d.clearedAlertEvents.map(event => (
-                    <li key={event.event_id} className="p-5 rounded-2xl bg-[var(--bg-0)] border border-[var(--line)]">
+                    <li key={event.event_id} className="group p-5 rounded-2xl bg-[var(--bg-0)] border border-[var(--line)] cursor-pointer transition-shadow hover:shadow-md">
+                      <button
+                        type="button"
+                        onClick={() => openAlertOnMap(event)}
+                        className="w-full text-left"
+                      >
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <div className="font-semibold text-[var(--ink-1)]">
@@ -140,8 +232,12 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                             Cleared {formatDate(event.cleared_at)} · peak {Math.round(event.peak_value * 10) / 10}
                           </div>
                         </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--ok-10)] text-[var(--ok)]">Cleared</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <ArrowUpRight className="text-[var(--ink-3)] opacity-0 transition-opacity group-hover:opacity-100" size={16} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--ok-10)] text-[var(--ok)]">Cleared</span>
+                        </div>
                       </div>
+                      </button>
                     </li>
                   ))
                 )}

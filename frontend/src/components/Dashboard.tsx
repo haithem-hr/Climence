@@ -331,11 +331,18 @@ function MainContent({
 
         <div className="map-panel-tl">
           <div className="pollutants">
-            {d.sensorLegend.map(entry => (
-              <button key={entry.key} className={`pollutant-pill ${d.pollutant === entry.key ? 'active' : ''}`} onClick={() => d.setPollutant(entry.key)}>
-                {entry.label}<span className="val tnum">{Math.round(d.pollutantMap[entry.key])}</span>
-              </button>
-            ))}
+            {d.sensorLegend
+              .filter(entry => {
+                if (d.dataSource === 'stationary') {
+                  return !['o3', 'so2', 'co', 'battery'].includes(entry.key);
+                }
+                return true;
+              })
+              .map(entry => (
+                <button key={entry.key} className={`pollutant-pill ${d.pollutant === entry.key ? 'active' : ''}`} onClick={() => d.setPollutant(entry.key)}>
+                  {entry.label}<span className="val tnum">{Math.round(d.pollutantMap[entry.key])}</span>
+                </button>
+              ))}
           </div>
         </div>
 

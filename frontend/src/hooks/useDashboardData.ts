@@ -5,7 +5,7 @@
  * pollutant stats, alert feed, trend, forecast, sources, etc.) into a
  * single hook so the composition root stays thin.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   AQI_BANDS,
   DroneState,
@@ -21,6 +21,7 @@ import {
   type AlertRule,
   type AlertRuleInput,
   type AlertEvent,
+  type AlertPollutantType,
 } from '@climence/shared';
 import {
   fetchAlertConfig,
@@ -43,6 +44,7 @@ import {
   getMapMetricConfig,
   getMapMetricValue,
   heatIntensityForMetric,
+  isMapMetricKey,
   type MapMetricKey,
 } from '../lib/mapMetrics';
 import type { ReportPayload } from '../lib/reports';
@@ -120,6 +122,13 @@ export interface FeedItem {
   lat?: number;
   lng?: number;
   uuid?: string;
+}
+
+export interface LiveMapFocusRequest {
+  focusSensorId?: string;
+  focusCoords?: { lat: number; lng: number };
+  focusPollutant?: AlertPollutantType;
+  nonce: number;
 }
 
 
@@ -322,12 +331,17 @@ function hotspotsFromSensors(sensors: SensorPoint[], metricKey: PollutantKey): H
 
 /* ═══════════════════════════ THE HOOK ═══════════════════════════ */
 
-const STORAGE_KEYS = {
+export const DASHBOARD_STORAGE_KEYS = {
   TAB: 'climence.active-tab',
   MODE: 'climence.map-mode',
   POLLUTANT: 'climence.active-pollutant',
   RANGE: 'climence.active-range',
 };
+
+function loadStoredPollutant(): PollutantKey {
+  const stored = localStorage.getItem(DASHBOARD_STORAGE_KEYS.POLLUTANT);
+  return isMapMetricKey(stored) ? stored : 'pm25';
+}
 
 export function useDashboardData(
   snapshot: TelemetrySnapshot,
@@ -337,18 +351,29 @@ export function useDashboardData(
   locale: Locale,
   dataSource?: 'live' | 'stationary',
   stationaryHeatmapPoints?: HeatmapPoint[],
+  controlledPollutant?: PollutantKey,
+  onPollutantChange?: Dispatch<SetStateAction<PollutantKey>>,
 ) {
   const t = useCallback((key: DictKey) => translate(key, locale), [locale]);
 
-  const [mode, setMode] = useState<ViewMode>(() => (localStorage.getItem(STORAGE_KEYS.MODE) as ViewMode) || 'heatmap');
-  const [pollutant, setPollutant] = useState<PollutantKey>(() => (localStorage.getItem(STORAGE_KEYS.POLLUTANT) as PollutantKey) || 'pm25');
-  const [range, setRange] = useState<TimeRange>(() => (localStorage.getItem(STORAGE_KEYS.RANGE) as TimeRange) || '15m');
+  const [mode, setMode] = useState<ViewMode>(() => (localStorage.getItem(DASHBOARD_STORAGE_KEYS.MODE) as ViewMode) || 'heatmap');
+  const [internalPollutant, setInternalPollutant] = useState<PollutantKey>(loadStoredPollutant);
+  const pollutant = controlledPollutant ?? internalPollutant;
+  const setPollutant = useCallback<Dispatch<SetStateAction<PollutantKey>>>((next) => {
+    if (onPollutantChange) {
+      onPollutantChange(next);
+      return;
+    }
+    setInternalPollutant(next);
+  }, [onPollutantChange]);
+  const [range, setRange] = useState<TimeRange>(() => (localStorage.getItem(DASHBOARD_STORAGE_KEYS.RANGE) as TimeRange) || '15m');
   const [selected, setSelected] = useState<HotspotCard | null>(null);
   const [mapBounds, setMapBounds] = useState<RiyadhMapBounds | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
   const [zoomPreset, setZoomPreset] = useState<RiyadhZoomPreset>('city');
+  const [liveMapFocusRequest, setLiveMapFocusRequest] = useState<LiveMapFocusRequest | null>(null);
   const [currentTab, setCurrentTab] = useState<'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports'>(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.TAB);
+    const stored = localStorage.getItem(DASHBOARD_STORAGE_KEYS.TAB);
     const allowed = ['overview', 'livemap', 'analytics', 'alerts', 'sensors', 'reports'] as const;
     return (allowed.includes(stored as (typeof allowed)[number]) ? (stored as (typeof allowed)[number]) : 'overview');
   });
@@ -422,19 +447,19 @@ export function useDashboardData(
   }, [authToken]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TAB, currentTab);
+    localStorage.setItem(DASHBOARD_STORAGE_KEYS.TAB, currentTab);
   }, [currentTab]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MODE, mode);
+    localStorage.setItem(DASHBOARD_STORAGE_KEYS.MODE, mode);
   }, [mode]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.POLLUTANT, pollutant);
+    localStorage.setItem(DASHBOARD_STORAGE_KEYS.POLLUTANT, pollutant);
   }, [pollutant]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.RANGE, range);
+    localStorage.setItem(DASHBOARD_STORAGE_KEYS.RANGE, range);
   }, [range]);
 
   // Refresh alert data when auth token or telemetry snapshot changes
@@ -679,6 +704,14 @@ export function useDashboardData(
 
   const handleMapViewportChange = useCallback((viewport: { bounds: RiyadhMapBounds; zoom: number }) => { setMapBounds(viewport.bounds); setMapZoom(viewport.zoom); }, []);
 
+  const requestLiveMapFocus = useCallback((request: Omit<LiveMapFocusRequest, 'nonce'>) => {
+    setLiveMapFocusRequest({ ...request, nonce: Date.now() });
+  }, []);
+
+  const clearLiveMapFocusRequest = useCallback(() => {
+    setLiveMapFocusRequest(null);
+  }, []);
+
   const handlePickHotspot = useCallback((hotspot: HotspotCard) => {
     setSelected(hotspot);
     setZoomPreset('zone');
@@ -729,6 +762,7 @@ export function useDashboardData(
     hotspots, selectedHotspot, selected, setSelected,
     // map
   mapHeatmapPoints: effectiveHeatmapPoints, mapHotspots, zoomPreset, setZoomPreset, mapFocusTarget, mapBounds, mapZoom,
+    liveMapFocusRequest, requestLiveMapFocus, clearLiveMapFocusRequest,
     handlePickSensor, handleMapViewportChange, handlePickHotspot,
     // trend / forecast / sources
     pm25Series, pm10Series, no2Series, co2Series, trend, trendLabel, forecast, sources, drift,

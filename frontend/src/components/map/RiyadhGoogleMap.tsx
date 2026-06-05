@@ -74,6 +74,7 @@ interface Props {
   heatmapPoints?: HeatmapPoint[];
   zoomPreset?: RiyadhZoomPreset;
   focusTarget?: { lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null;
+  focusHighlight?: { lat: number; lng: number; nonce: number } | null;
   onViewportChange?: (viewport: { bounds: RiyadhMapBounds; zoom: number }) => void;
   onPickSensor: (sensor: RiyadhMapSensor) => void;
   dataSource?: string;
@@ -155,6 +156,7 @@ export function RiyadhGoogleMap({
   heatmapPoints = [],
   zoomPreset = 'city',
   focusTarget = null,
+  focusHighlight = null,
   onViewportChange,
   onPickSensor,
   dataSource,
@@ -180,6 +182,16 @@ export function RiyadhGoogleMap({
       ),
     [sortedSensors],
   );
+  const focusHighlightIcon = useMemo(
+    () =>
+      divIcon({
+        className: 'map-focus-pulse-icon',
+        html: '<div class="map-focus-pulse-marker"><span></span></div>',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      }),
+    [],
+  );
 
   return (
     <div className="map">
@@ -188,7 +200,7 @@ export function RiyadhGoogleMap({
         center={[RIYADH_CENTER.lat, RIYADH_CENTER.lng]}
         zoom={PRESET_ZOOM[zoomPreset]}
         minZoom={10}
-        maxZoom={14}
+        maxZoom={16}
         zoomControl={false}
         attributionControl={true}
         maxBounds={[
@@ -297,6 +309,15 @@ export function RiyadhGoogleMap({
             </Popup>
           </Marker>
         ))}
+
+        {focusHighlight && (
+          <Marker
+            key={`focus-highlight-${focusHighlight.nonce}`}
+            position={[focusHighlight.lat, focusHighlight.lng]}
+            icon={focusHighlightIcon}
+            zIndexOffset={1200}
+          />
+        )}
 
         {dataSource !== 'stationary' && sortedSensors.map(sensor => {
           const icon = sensorIcons.get(sensor.uuid);

@@ -154,6 +154,12 @@ const MAP_METRIC_CONFIG: Record<MapMetricKey, MapMetricConfig> = {
   },
 };
 
+export const MAP_METRIC_KEYS = Object.keys(MAP_METRIC_CONFIG) as MapMetricKey[];
+
+export function isMapMetricKey(value: string | null | undefined): value is MapMetricKey {
+  return MAP_METRIC_KEYS.includes(value as MapMetricKey);
+}
+
 export const HEATMAP_GRADIENT = {
   0.18: '#2f9f6b',
   0.36: '#c8a93f',
