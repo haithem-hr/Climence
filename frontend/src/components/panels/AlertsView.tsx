@@ -181,24 +181,24 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                         onClick={() => openAlertOnMap(event)}
                         className="w-full text-left"
                       >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--danger)] text-white">Active</span>
-                            <span className="text-xs text-[var(--ink-3)] font-mono">{formatDate(event.triggered_at)}</span>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--danger)] text-white">Active</span>
+                              <span className="text-xs text-[var(--ink-3)] font-mono">{formatDate(event.triggered_at)}</span>
+                            </div>
+                            <div className="font-semibold text-base text-[var(--ink-1)]">
+                              {pollutantLabel(event.pollutant_type)} {event.condition_operator ?? '>'} {event.threshold_value ?? '--'}
+                            </div>
+                            <div className="text-sm text-[var(--ink-2)] mt-1">
+                              Peak value {Math.round(event.peak_value * 10) / 10} · Rule #{event.rule_id}
+                            </div>
                           </div>
-                          <div className="font-semibold text-base text-[var(--ink-1)]">
-                            {pollutantLabel(event.pollutant_type)} {event.condition_operator ?? '>'} {event.threshold_value ?? '--'}
-                          </div>
-                          <div className="text-sm text-[var(--ink-2)] mt-1">
-                            Peak value {Math.round(event.peak_value * 10) / 10} · Rule #{event.rule_id}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <ArrowUpRight className="text-[var(--ink-3)] opacity-0 transition-opacity group-hover:opacity-100" size={16} />
+                            <AlertTriangle className="text-[var(--danger)]" size={22} />
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <ArrowUpRight className="text-[var(--ink-3)] opacity-0 transition-opacity group-hover:opacity-100" size={16} />
-                          <AlertTriangle className="text-[var(--danger)]" size={22} />
-                        </div>
-                      </div>
                       </button>
                     </li>
                   ))
@@ -223,20 +223,20 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                         onClick={() => openAlertOnMap(event)}
                         className="w-full text-left"
                       >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="font-semibold text-[var(--ink-1)]">
-                            {pollutantLabel(event.pollutant_type)} back to normal
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <div className="font-semibold text-[var(--ink-1)]">
+                              {pollutantLabel(event.pollutant_type)} back to normal
+                            </div>
+                            <div className="text-sm text-[var(--ink-3)]">
+                              Cleared {formatDate(event.cleared_at)} · peak {Math.round(event.peak_value * 10) / 10}
+                            </div>
                           </div>
-                          <div className="text-sm text-[var(--ink-3)]">
-                            Cleared {formatDate(event.cleared_at)} · peak {Math.round(event.peak_value * 10) / 10}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <ArrowUpRight className="text-[var(--ink-3)] opacity-0 transition-opacity group-hover:opacity-100" size={16} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--ok-10)] text-[var(--ok)]">Cleared</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <ArrowUpRight className="text-[var(--ink-3)] opacity-0 transition-opacity group-hover:opacity-100" size={16} />
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--ok-10)] text-[var(--ok)]">Cleared</span>
-                        </div>
-                      </div>
                       </button>
                     </li>
                   ))

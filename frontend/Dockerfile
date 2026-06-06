@@ -3,6 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
+COPY tsconfig.base.json ./
 COPY frontend/package.json ./frontend/package.json
 COPY shared/package.json ./shared/package.json
 

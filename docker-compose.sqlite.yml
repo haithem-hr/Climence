@@ -21,13 +21,9 @@ services:
       API_PORT: 3002
       CLIMENCE_AUTH_BYPASS: "0"
       JWT_SECRET: "change-me-in-production"
-      CLIMENCE_STORAGE: "redis-postgres"
+      CLIMENCE_STORAGE: "sqlite"
       CLIMENCE_DB_PATH: /data/telemetry.db
-      DATABASE_URL: "postgres://climence:climence@postgres:5432/climence"
-      REDIS_URL: "redis://redis:6379"
-      CLIMENCE_BACKUP_ENABLED: "1"
-      CLIMENCE_BACKUP_INTERVAL_MINUTES: "60"
-      CLIMENCE_BACKUP_DIR: /data/backups
+      CLIMENCE_BACKUP_ENABLED: "0"
       CLIMENCE_LOG_LEVEL: info
     ports:
       - "1883:1883"
@@ -38,11 +34,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
 
   simulator:
     build:
@@ -66,29 +57,3 @@ services:
     depends_on:
       api:
         condition: service_healthy
-
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: climence
-      POSTGRES_USER: climence
-      POSTGRES_PASSWORD: climence
-    ports:
-      - "5432:5432"
-    volumes:
-      - climence_pg:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U climence -d climence" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:7-alpine
-    command: [ "redis-server", "--appendonly", "yes" ]
-    volumes:
-      - climence_redis:/data
-
-volumes:
-  climence_pg:
-  climence_redis:

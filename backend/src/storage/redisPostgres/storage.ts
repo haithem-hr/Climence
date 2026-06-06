@@ -99,7 +99,7 @@ export function createRedisPostgresStorage(opts: {
         ...row,
         server_timestamp: nowIso,
       };
-      multi.set(latestKey(d.uuid), JSON.stringify(record), { EX: 60 * 10 }); // 10 min TTL
+      multi.setEx(latestKey(d.uuid), 60 * 10, JSON.stringify(record));
     }
     await multi.exec();
   }
@@ -511,10 +511,10 @@ export function createRedisPostgresStorage(opts: {
     return rows[0] ? { ...rows[0], is_active: Boolean(rows[0].is_active) } : null;
   }
 
-  async function deleteAlertRule(ruleId: number, userId: number) {
+  async function deleteAlertRule(ruleId: number) {
     const { rowCount } = await pool.query(
-      `DELETE FROM alert_rules WHERE rule_id = $1 AND user_id = $2`,
-      [ruleId, userId],
+      `DELETE FROM alert_rules WHERE rule_id = $1`,
+      [ruleId],
     );
     return (rowCount ?? 0) > 0;
   }
@@ -546,9 +546,9 @@ export function createRedisPostgresStorage(opts: {
         const threshold = Number(rule.threshold_value);
         const crosses = op === '>' ? value > threshold
           : op === '>=' ? value >= threshold
-          : op === '<' ? value < threshold
-          : op === '<=' ? value <= threshold
-          : false;
+            : op === '<' ? value < threshold
+              : op === '<=' ? value <= threshold
+                : false;
 
         if (crosses) {
           const { rows: existing } = await pool.query(

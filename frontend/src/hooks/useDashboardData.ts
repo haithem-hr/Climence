@@ -393,13 +393,13 @@ export function useDashboardData(
     if (!authToken) return;
     fetchAlertRules(authToken)
       .then(setAlertRules)
-      .catch(() => {});
+      .catch(() => { });
     fetchActiveAlertEvents(authToken)
       .then(setActiveAlertEvents)
-      .catch(() => {});
+      .catch(() => { });
     fetchClearedAlertEvents(authToken)
       .then(setClearedAlertEvents)
-      .catch(() => {});
+      .catch(() => { });
   }, [authToken]);
 
   const handleCreateAlertRule = useCallback((input: AlertRuleInput) => {
@@ -425,8 +425,11 @@ export function useDashboardData(
       .then(() => {
         refreshAlertData();
       })
-      .catch(() => {});
-  }, [authToken, refreshAlertData]);
+      .catch((err) => {
+        console.error('[handleDeleteAlertRule] failed:', err);
+        setAlertRuleState('error');
+      });
+  }, [authToken, refreshAlertData, setAlertRuleState]);
 
   const handleDispatchDrone = useCallback((droneUuid: string, droneLabel: string, lat: number, lng: number) => {
     if (!authToken) return Promise.reject(new Error('No auth token'));
@@ -761,7 +764,7 @@ export function useDashboardData(
     // hotspots
     hotspots, selectedHotspot, selected, setSelected,
     // map
-  mapHeatmapPoints: effectiveHeatmapPoints, mapHotspots, zoomPreset, setZoomPreset, mapFocusTarget, mapBounds, mapZoom,
+    mapHeatmapPoints: effectiveHeatmapPoints, mapHotspots, zoomPreset, setZoomPreset, mapFocusTarget, mapBounds, mapZoom,
     liveMapFocusRequest, requestLiveMapFocus, clearLiveMapFocusRequest,
     handlePickSensor, handleMapViewportChange, handlePickHotspot,
     // trend / forecast / sources

@@ -20,7 +20,12 @@ export function getPostgresPool() {
 export async function migratePostgres(pool: Pool) {
   const schemaPath = resolve(__dirname, '../postgres/schema.sql');
   const sql = readFileSync(schemaPath, 'utf8');
-  await pool.query(sql);
+  await pool.query('SELECT pg_advisory_lock(987654321)');
+  try {
+    await pool.query(sql);
+  } finally {
+    await pool.query('SELECT pg_advisory_unlock(987654321)');
+  }
 }
 
 let redisClient: RedisClientType | null = null;

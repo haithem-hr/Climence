@@ -52,12 +52,12 @@ export const insertFleet = db.transaction((drones: TelemetryInput[]) => {
       lat: drone.location.lat,
       lng: drone.location.lng,
       pm25: drone.airQuality.pm25,
-  pm10: drone.airQuality.pm10 ?? null,
+      pm10: drone.airQuality.pm10 ?? null,
       co2: drone.airQuality.co2,
       no2: drone.airQuality.no2,
-  o3: drone.airQuality.o3 ?? null,
-  so2: drone.airQuality.so2 ?? null,
-  co: drone.airQuality.co ?? null,
+      o3: drone.airQuality.o3 ?? null,
+      so2: drone.airQuality.so2 ?? null,
+      co: drone.airQuality.co ?? null,
       temperature: drone.airQuality.temperature,
       humidity: drone.airQuality.humidity,
       rssi: drone.rssi,
@@ -224,21 +224,21 @@ export function getHistoricalAvg(windowMinutes: number): TrendPoint[] {
 type Pollutant = 'pm25' | 'pm10' | 'co2' | 'no2' | 'o3' | 'so2' | 'co';
 
 const RANGE_MINUTES: Record<string, number> = {
-  '1h':   60,
-  '6h':   360,
-  '12h':  720,
-  '24h':  1440,
-  '7d':   10080,
-  '30d':  43200,
-  '90d':  129600,
+  '1h': 60,
+  '6h': 360,
+  '12h': 720,
+  '24h': 1440,
+  '7d': 10080,
+  '30d': 43200,
+  '90d': 129600,
 };
 
 const BUCKET_MINUTES: Record<string, number> = {
-  '1h':  1,
-  '6h':  5,
+  '1h': 1,
+  '6h': 5,
   '12h': 5,
   '24h': 5,
-  '7d':  30,
+  '7d': 30,
   '30d': 360,
   '90d': 1440,
 };
@@ -259,16 +259,16 @@ export function getHistoryByZone(
   centerLng?: number,
   radiusKm?: number,
 ): HistoryPoint[] {
-  const windowMin  = RANGE_MINUTES[range]  ?? 60;
-  const bucketMin  = BUCKET_MINUTES[range] ?? 1;
+  const windowMin = RANGE_MINUTES[range] ?? 60;
+  const bucketMin = BUCKET_MINUTES[range] ?? 1;
 
   // SQLite strftime format that groups by the right bucket
   const fmtMap: Record<number, string> = {
-    1:    '%Y-%m-%dT%H:%M:00Z',
-    5:    '%Y-%m-%dT%H:%f:00Z',   // will be overridden below
-    30:   '%Y-%m-%dT%H:%M:00Z',   // will be overridden below
-    60:   '%Y-%m-%dT%H:00:00Z',
-    360:  '%Y-%m-%dT%H:00:00Z',   // will be overridden below
+    1: '%Y-%m-%dT%H:%M:00Z',
+    5: '%Y-%m-%dT%H:%f:00Z',   // will be overridden below
+    30: '%Y-%m-%dT%H:%M:00Z',   // will be overridden below
+    60: '%Y-%m-%dT%H:00:00Z',
+    360: '%Y-%m-%dT%H:00:00Z',   // will be overridden below
     1440: '%Y-%m-%dT00:00:00Z',
   };
 
@@ -411,26 +411,26 @@ export function computeSnapshot(): TelemetrySnapshot {
   const alertThresholdPm25 = getAlertThresholdPm25();
 
   // Legacy fields
-  const drones    = getLatest();
-  const alerts    = getActiveAlerts(alertThresholdPm25);
+  const drones = getLatest();
+  const alerts = getActiveAlerts(alertThresholdPm25);
   const cityTrend = getCityTrend();
-  const hotspots  = getHotspots();
+  const hotspots = getHotspots();
 
   // P0 — DBSCAN-lite clusters
-  const rawPoints       = getRawPointsForHotspot(-5);
+  const rawPoints = getRawPointsForHotspot(-5);
   const hotspotClusters = detectHotspots(rawPoints, alertThresholdPm25);
 
   // P1 — trend over last 30 minutes
   const trendSeries = getHistoricalAvg(30);
-  const trend       = classifyTrend(trendSeries, 30);
+  const trend = classifyTrend(trendSeries, 30);
 
   // P3 — 6-hour forecast
   const hourlyHistory = getHourlyHistory(7);
-  const forecast      = computeForecast(hourlyHistory, 6);
+  const forecast = computeForecast(hourlyHistory, 6);
 
   // P4 — source attribution over last 24 hours
   const sourceReadings = getSourceData(24);
-  const sources        = attributeSources(sourceReadings);
+  const sources = attributeSources(sourceReadings);
 
   return {
     drones,
@@ -474,7 +474,7 @@ const updateMissionStatusStmt = db.prepare(`
   WHERE id = @id
 `);
 
-export const updateMissionStatus = (id: string, status: string, report?: string) => 
+export const updateMissionStatus = (id: string, status: string, report?: string) =>
   updateMissionStatusStmt.run({ id, status, report });
 
 const allMissionsStmt = db.prepare(`
@@ -643,15 +643,19 @@ export function updateAlertRule(ruleId: number, userId: number, input: Partial<A
   return row ? { ...row, is_active: Boolean(row.is_active) } : null;
 }
 
+const deleteAlertEventsForRuleStmt = db.prepare(`
+  DELETE FROM alert_events WHERE rule_id = ?
+`);
+
 const deleteAlertRuleStmt = db.prepare(`
-  DELETE FROM alert_rules WHERE rule_id = ? AND user_id = ?
+  DELETE FROM alert_rules WHERE rule_id = ?
 `);
 
 export function deleteAlertRule(ruleId: number, userId: number): boolean {
-  const result = deleteAlertRuleStmt.run(ruleId, userId);
+  deleteAlertEventsForRuleStmt.run(ruleId);
+  const result = deleteAlertRuleStmt.run(ruleId);
   return result.changes > 0;
 }
-
 export function getAlertEvents(status?: string, limit: number = 50): any[] {
   let query = `
     SELECT ae.*, ar.pollutant_type, ar.threshold_value, ar.condition_operator, ar.notification_channel
@@ -698,9 +702,9 @@ export function evaluateAlerts(drones: TelemetryInput[]): void {
       const threshold = Number(rule.threshold_value);
       const crosses = op === '>' ? value > threshold
         : op === '>=' ? value >= threshold
-        : op === '<' ? value < threshold
-        : op === '<=' ? value <= threshold
-        : false;
+          : op === '<' ? value < threshold
+            : op === '<=' ? value <= threshold
+              : false;
 
       if (crosses) {
         const existing = activeEventByRuleStmt.get(rule.rule_id) as any;
