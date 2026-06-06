@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Filter, Pause, Play, Save, Trash2 } from 'lucide-react';
+import { Filter, Pause, Play, Camera } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import type { HeatmapPoint } from '../map/HeatmapLayer';
 import {
   RiyadhGoogleMap,
@@ -12,15 +13,12 @@ import {
   clusterLiveMapSensors,
   filterLiveMapSensors,
   nextReplayHistory,
-  parseSavedViewPresets,
-  serializeSavedViewPresets,
   type LiveMapStatusFilter,
   type ReplayFrame,
-  type SavedViewPreset,
 } from '../../lib/liveMap';
 import type { useDashboardData } from '../../hooks/useDashboardData';
 
-const LIVE_MAP_PRESETS_KEY = 'climence.live-map.presets.v1';
+
 const LIVE_MAP_POLLUTANTS = ['pm25', 'pm10', 'o3', 'no2', 'co', 'so2', 'dust'] as const;
 
 type DashboardData = ReturnType<typeof useDashboardData>;
@@ -30,17 +28,7 @@ interface LiveMapViewProps {
   data: DashboardData;
 }
 
-function midpointFromBounds(bounds: DashboardData['mapBounds']) {
-  if (!bounds) return null;
-  return {
-    lat: (bounds.north + bounds.south) / 2,
-    lng: (bounds.east + bounds.west) / 2,
-  };
-}
 
-function makePresetName(existing: SavedViewPreset[]) {
-  return `Preset ${existing.length + 1}`;
-}
 
 function isLiveMapPollutant(value: string | undefined): value is LiveMapPollutant {
   return LIVE_MAP_POLLUTANTS.includes(value as LiveMapPollutant);
@@ -71,10 +59,6 @@ export function LiveMapView({ data }: LiveMapViewProps) {
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const [frames, setFrames] = useState<ReplayFrame[]>([]);
 
-  const [savedPresets, setSavedPresets] = useState<SavedViewPreset[]>(() => {
-    if (typeof window === 'undefined') return [];
-    return parseSavedViewPresets(window.localStorage.getItem(LIVE_MAP_PRESETS_KEY));
-  });
   const [localFocusTarget, setLocalFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; nonce: number; uuid?: string } | null>(null);
   const [temporaryHighlight, setTemporaryHighlight] = useState<{ lat: number; lng: number; nonce: number } | null>(null);
 
@@ -100,9 +84,12 @@ export function LiveMapView({ data }: LiveMapViewProps) {
   }, [frames.length, playbackEnabled, playbackPlaying]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(LIVE_MAP_PRESETS_KEY, serializeSavedViewPresets(savedPresets));
-  }, [savedPresets]);
+    if (!temporaryHighlight) return;
+    const timer = window.setTimeout(() => {
+      setTemporaryHighlight(null);
+    }, 4500);
+    return () => window.clearTimeout(timer);
+  }, [temporaryHighlight]);
 
   const liveMapFocusRequest = data.liveMapFocusRequest;
   const clearLiveMapFocusRequest = data.clearLiveMapFocusRequest;
@@ -245,33 +232,27 @@ export function LiveMapView({ data }: LiveMapViewProps) {
 
   const activeFocusTarget = localFocusTarget ?? data.mapFocusTarget;
 
-  const saveCurrentPreset = () => {
-    const center = midpointFromBounds(data.mapBounds);
-    if (!center) return;
-
-    const next: SavedViewPreset = {
-      id: `preset-${Date.now()}`,
-      name: makePresetName(savedPresets),
-      lat: center.lat,
-      lng: center.lng,
-      zoom: data.mapZoom,
-      createdAt: new Date().toISOString(),
-    };
-
-    setSavedPresets(prev => [...prev, next].slice(-10));
-  };
-
-  const applyPreset = (preset: SavedViewPreset) => {
-    setLocalFocusTarget(prev => ({
-      lat: preset.lat,
-      lng: preset.lng,
-      zoom: preset.zoom,
-      nonce: (prev?.nonce ?? 0) + 1,
-    }));
-  };
-
-  const deletePreset = (presetId: string) => {
-    setSavedPresets(prev => prev.filter(preset => preset.id !== presetId));
+  const [captureLoading, setCaptureLoading] = useState(false);
+  const captureMapImage = async () => {
+    const mapElement = document.querySelector('.live-map-stage') as HTMLElement;
+    if (!mapElement) return;
+    try {
+      setCaptureLoading(true);
+      const dataUrl = await toPng(mapElement, {
+        cacheBust: true,
+        backgroundColor: '#111318',
+        pixelRatio: window.devicePixelRatio || 1,
+      });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `climence-map-${selectedPollutant}-${Date.now()}.png`;
+      a.click();
+    } catch (err) {
+      console.error('Failed to capture map screenshot:', err);
+      alert('Failed to capture screenshot. The map tiles might be blocking it.');
+    } finally {
+      setCaptureLoading(false);
+    }
   };
 
   const setBuiltInPreset = (preset: RiyadhZoomPreset) => {
@@ -384,17 +365,9 @@ export function LiveMapView({ data }: LiveMapViewProps) {
           </div>
 
           <div className="live-map-chip-group">
-            <button className="live-map-chip" onClick={saveCurrentPreset} disabled={!data.mapBounds}>
-              <Save size={12} /> Save current view
+            <button className="live-map-chip" onClick={captureMapImage} disabled={captureLoading}>
+              <Camera size={12} /> {captureLoading ? 'Saving...' : 'Save map as Image'}
             </button>
-            {savedPresets.map(preset => (
-              <div key={preset.id} className="live-map-preset-pill">
-                <button className="live-map-chip" onClick={() => applyPreset(preset)}>{preset.name}</button>
-                <button className="live-map-chip danger" onClick={() => deletePreset(preset.id)} aria-label={`Delete ${preset.name}`}>
-                  <Trash2 size={11} />
-                </button>
-              </div>
-            ))}
           </div>
         </div>
       </div>

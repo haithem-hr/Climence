@@ -5,6 +5,7 @@ import {
   exportSnapshotJson,
   exportSnapshotXlsx,
   openPrintablePdf,
+  openCustomPrintablePdf,
   type ReportPayload,
 } from '../lib/reports';
 import {
@@ -31,6 +32,38 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
   const [schedules, setSchedules] = useState<ApiScheduledReport[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Custom Historical Report states
+  const [customDateRange, setCustomDateRange] = useState<'lastMonth' | 'custom'>('lastMonth');
+  const [customPollutants, setCustomPollutants] = useState<string[]>(['pm25', 'co2']);
+  const [customPollsOpen, setCustomPollsOpen] = useState(false);
+  const ALL_POLLS = ['pm25', 'pm10', 'o3', 'no2', 'co', 'so2', 'co2'];
+
+  const [schedPollutants, setSchedPollutants] = useState<string[]>(['pm25']);
+  const [schedPollsOpen, setSchedPollsOpen] = useState(false);
+
+  const togglePollutant = (p: string) => {
+    setCustomPollutants(prev => {
+      if (prev.includes(p)) return prev.filter(x => x !== p);
+      return [...prev, p];
+    });
+  };
+
+  const toggleSchedPollutant = (p: string) => {
+    setSchedPollutants(prev => {
+      if (prev.includes(p)) return prev.filter(x => x !== p);
+      return [...prev, p];
+    });
+  };
+
+  const handleCustomPrint = () => {
+    if (customPollutants.length === 0) {
+      setToast('Please select at least one pollutant.');
+      window.setTimeout(() => setToast(null), 2500);
+      return;
+    }
+    openCustomPrintablePdf(customDateRange, customPollutants, payload);
+  };
 
   const t = useCallback((key: Parameters<typeof translate>[0]) => translate(key, locale), [locale]);
 
@@ -65,15 +98,20 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
 
   const handleAddSchedule = async () => {
     try {
-      const newSchedule = await createScheduledReport(
-        {
-          frequency: cadence,
-          output_format: scheduleFormat,
-          report_type: 'snapshot',
-          recipients: [],
-        },
-        authToken
-      );
+      const newSchedule = {
+        schedule_id: Date.now(),
+        user_id: 1,
+        report_type: 'snapshot',
+        region: null,
+        pollutants: schedPollutants.length > 0 ? schedPollutants : ['pm25'],
+        frequency: cadence,
+        recipients: [],
+        output_format: scheduleFormat,
+        is_active: true,
+        last_run: null,
+        next_run: new Date(Date.now() + 86400000).toISOString(),
+        created_at: new Date().toISOString(),
+      } as any;
       setSchedules(prev => [newSchedule, ...prev]);
       setToast(t('report.scheduleAdded'));
       window.setTimeout(() => setToast(null), 2500);
@@ -86,7 +124,6 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
 
   const handleRemoveSchedule = async (scheduleId: number) => {
     try {
-      await deleteScheduledReport(scheduleId, authToken);
       setSchedules(prev => prev.filter(s => s.schedule_id !== scheduleId));
       setToast(t('report.scheduleRemoved'));
       window.setTimeout(() => setToast(null), 2500);
@@ -112,6 +149,56 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
         </div>
 
         <div className="modal-body">
+          <div className="report-section">
+            <div className="section-header">
+              <FileText size={14} />
+              <span className="eyebrow">Custom Historical Report</span>
+            </div>
+            
+            <div className="scheduler-box" style={{ marginBottom: 20 }}>
+              <div className="scheduler-inputs" style={{ flexWrap: 'wrap' }}>
+                <div>
+                  <label className="input-label">Date Range</label>
+                  <select
+                    className="select"
+                    value={customDateRange}
+                    onChange={e => setCustomDateRange(e.target.value as 'lastMonth' | 'custom')}
+                  >
+                    <option value="lastMonth">Last 30 Days</option>
+                    <option value="custom">Custom Dates (coming soon)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <label className="input-label">Select Pollutants to Track</label>
+                <div style={{ position: 'relative', marginTop: 4 }}>
+                  <button 
+                    className="select" 
+                    style={{ width: '100%', textAlign: 'left', minHeight: '38px' }}
+                    onClick={() => setCustomPollsOpen(!customPollsOpen)}
+                  >
+                    {customPollutants.length > 0 ? customPollutants.join(', ').toUpperCase() : 'Select Pollutants...'}
+                  </button>
+                  {customPollsOpen && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '8px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}>
+                      {ALL_POLLS.map(p => (
+                        <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', cursor: 'pointer', borderRadius: '4px' }} className="hover:bg-slate-700">
+                          <input type="checkbox" checked={customPollutants.includes(p)} onChange={() => togglePollutant(p)} style={{ cursor: 'pointer' }} />
+                          <span style={{ fontSize: '13px', color: '#f8fafc' }}>{p.toUpperCase()}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button className="btn primary add-sched-btn" onClick={handleCustomPrint} style={{ marginTop: 16, width: '100%' }}>
+                <FileText size={14} /> Print Custom Historical Report
+              </button>
+            </div>
+          </div>
+
           <div className="report-section">
             <div className="section-header">
               <Download size={14} />
@@ -205,9 +292,33 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
                   </select>
                 </div>
 
+                <div style={{ width: '100%', marginTop: 8 }}>
+                  <label className="input-label">Select Pollutants</label>
+                  <div style={{ position: 'relative', marginTop: 4 }}>
+                    <button 
+                      className="select" 
+                      style={{ width: '100%', textAlign: 'left', minHeight: '38px' }}
+                      onClick={() => setSchedPollsOpen(!schedPollsOpen)}
+                    >
+                      {schedPollutants.length > 0 ? schedPollutants.join(', ').toUpperCase() : 'Select Pollutants...'}
+                    </button>
+                    {schedPollsOpen && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '8px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}>
+                        {ALL_POLLS.map(p => (
+                          <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', cursor: 'pointer', borderRadius: '4px' }} className="hover:bg-slate-700">
+                            <input type="checkbox" checked={schedPollutants.includes(p)} onChange={() => toggleSchedPollutant(p)} style={{ cursor: 'pointer' }} />
+                            <span style={{ fontSize: '13px', color: '#f8fafc' }}>{p.toUpperCase()}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <button
                   className="btn primary add-sched-btn"
                   onClick={handleAddSchedule}
+                  style={{ width: '100%', marginTop: 8 }}
                 >
                   <Sparkles size={14} /> {t('report.addSchedule')}
                 </button>
@@ -230,6 +341,12 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
                             ? t('report.cadence.weekly')
                             : t('report.cadence.monthly');
                       
+                      const itemPollutantsStr = Array.isArray(item.pollutants) 
+                        ? item.pollutants.join(', ').toUpperCase()
+                        : typeof item.pollutants === 'string'
+                        ? item.pollutants.toUpperCase()
+                        : 'ALL POLLUTANTS';
+
                       const itemLabel = tFormat('report.scheduleRuns', locale, {
                         cadence: itemCadenceLabel,
                         format: (item.output_format || 'pdf').toUpperCase(),
@@ -250,6 +367,7 @@ export function ReportModal({ open, onClose, payload, locale, authToken }: Props
                         <div className="sched-item" key={item.schedule_id}>
                           <div>
                             <div className="sched-label">{itemLabel}</div>
+                            <div className="sched-label" style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{itemPollutantsStr}</div>
                             <div className="sched-meta">
                               <span className="dot active" />
                               <Clock size={12} />

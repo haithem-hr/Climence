@@ -212,6 +212,7 @@ export function RiyadhGoogleMap({
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
+          crossOrigin="anonymous"
         />
 
         <ViewportReporter onViewportChange={onViewportChange} />
