@@ -390,7 +390,7 @@ export function LiveMapView({ data }: LiveMapViewProps) {
           mode={data.mode}
           sensors={mapSensors as RiyadhMapSensor[]}
           hotspots={data.mapHotspots}
-          clusters={data.mode === 'hardware' ? liveMapClusters : []}
+          clusters={liveMapClusters}
           heatmapPoints={playbackHeatmapPoints}
           zoomPreset={data.zoomPreset}
           focusTarget={activeFocusTarget}

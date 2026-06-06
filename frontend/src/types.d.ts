@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /* eslint-disable */
 declare module 'write-excel-file/browser' {
   export type CellObject = any;

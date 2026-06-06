@@ -90,7 +90,7 @@ export function createRedisPostgresStorage(opts: {
     );
 
     // 2) Update Redis latest values (fast reads)
-    const multi = redis.multi();
+    const multi = await (redis.multi() as any);
     const nowIso = new Date().toISOString();
     for (const d of drones) {
       const row = mapTelemetryInputToRecord(d);
@@ -99,17 +99,14 @@ export function createRedisPostgresStorage(opts: {
         ...row,
         server_timestamp: nowIso,
       };
-      multi.setEx(latestKey(d.uuid), 60 * 10, JSON.stringify(record));
+      multi.set(latestKey(d.uuid), JSON.stringify(record), { EX: 60 * 10 });
     }
     await multi.exec();
   }
 
   async function getLatest(): Promise<TelemetryRecord[]> {
     // Redis scan keys (small fleet, acceptable). If needed we can maintain a set of active uuids.
-    const keys: string[] = [];
-    for await (const k of redis.scanIterator({ MATCH: `${REDIS_LATEST_PREFIX}*`, COUNT: 100 })) {
-      keys.push(String(k));
-    }
+    const keys = await redis.keys(`${REDIS_LATEST_PREFIX}*`);
 
     if (keys.length === 0) return [];
     const jsons = await redis.mGet(keys);
