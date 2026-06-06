@@ -31,6 +31,7 @@ services:
       CLIMENCE_LOG_LEVEL: info
     ports:
       - "1883:1883"
+      - "3002:3002"
     volumes:
       - ./data:/data
     healthcheck:
@@ -75,6 +76,7 @@ services:
       POSTGRES_PASSWORD: climence
     ports:
       - "5432:5432"
+      
     volumes:
       - climence_pg:/var/lib/postgresql/data
     healthcheck:
