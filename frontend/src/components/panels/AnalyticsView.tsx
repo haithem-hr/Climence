@@ -1,8 +1,8 @@
 /* eslint-disable */
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, 
-  PieChart, Pie, Cell, BarChart, Bar 
+import {
+  ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend,
+  PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import { AlertTriangle, Download, Maximize2, PieChart as PieIcon, BarChart2, Clock, RefreshCw } from 'lucide-react';
 import { fetchHistoryByZone, fetchOpenMeteoHistory, fetchForecast } from '../../api/client';
@@ -26,12 +26,12 @@ const USE_OPEN_METEO = new Set<TimeRange>(['6h', '12h', '24h', '3d', '1m']);
 
 // Map UI label → backend range key for Open-Meteo endpoint
 const OM_RANGE: Record<TimeRange, string> = {
-  '1h':  '1h',   // unused — SQLite path
-  '6h':  '6h',
+  '1h': '1h',   // unused — SQLite path
+  '6h': '6h',
   '12h': '12h',
   '24h': '24h',
-  '3d':  '3d',
-  '1m':  '30d',
+  '3d': '3d',
+  '1m': '30d',
 };
 
 const FORECAST_HORIZONS = [
@@ -39,14 +39,14 @@ const FORECAST_HORIZONS = [
   { label: '1D', val: 24 },
   { label: '3D', val: 72 },
   { label: '5D', val: 120 },
-  { label: '7D', val: 168 }
+
 ] as const;
 
 const POLLUTANT_COLORS = {
   pm25: 'var(--brand)',
   pm10: 'oklch(0.78 0.17 60)',
-  co2:  'oklch(0.68 0.20 28)',
-  no2:  'oklch(0.60 0.14 250)',
+  co2: 'oklch(0.68 0.20 28)',
+  no2: 'oklch(0.60 0.14 250)',
   dust: 'oklch(0.85 0.15 80)',
 };
 
@@ -54,8 +54,8 @@ interface AnalyticsPoint {
   time: string;
   pm25: number;
   pm10: number;
-  co2:  number;
-  no2:  number;
+  co2: number;
+  no2: number;
   dust: number;
   isForecast: boolean;
 }
@@ -65,18 +65,18 @@ const LIVE_REFRESH_MS = 30_000;
 
 export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
   const t = (key: Parameters<typeof translate>[0]) => translate(key, d.locale);
-  const [range, setRange]               = useState<TimeRange>('24h');
+  const [range, setRange] = useState<TimeRange>('24h');
   const [showForecast, setShowForecast] = useState(false);
   const [forecastHorizon, setForecastHorizon] = useState<number>(24);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh]   = useState<Date>(new Date());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const [enabled, setEnabled] = useState({
     pm25: true, pm10: true, co2: true, no2: true, dust: true,
   });
 
-  const [historyData, setHistoryData]   = useState<AnalyticsPoint[]>([]);
+  const [historyData, setHistoryData] = useState<AnalyticsPoint[]>([]);
   const [forecastData, setForecastData] = useState<ForecastPoint[]>([]);
 
   const loadData = useCallback(async (silent = false) => {
@@ -95,18 +95,18 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
         // ── Live path: SQLite per-minute data (1h only) ──
         const [pm25, co2, no2] = await Promise.all([
           fetchHistoryByZone('pm25', '1h', undefined, undefined, undefined, authToken),
-          fetchHistoryByZone('co2',  '1h', undefined, undefined, undefined, authToken),
-          fetchHistoryByZone('no2',  '1h', undefined, undefined, undefined, authToken),
+          fetchHistoryByZone('co2', '1h', undefined, undefined, undefined, authToken),
+          fetchHistoryByZone('no2', '1h', undefined, undefined, undefined, authToken),
         ]);
         for (let i = 0; i < pm25.length; i++) {
           const p25 = pm25[i]?.value ?? 0;
           merged.push({
-            time:       pm25[i]?.label ?? '',
-            pm25:       p25,
-            pm10:       p25 * 1.18,
-            co2:        co2[i]?.value  ?? 0,
-            no2:        no2[i]?.value  ?? 0,
-            dust:       p25 * 0.4,
+            time: pm25[i]?.label ?? '',
+            pm25: p25,
+            pm10: p25 * 1.18,
+            co2: co2[i]?.value ?? 0,
+            no2: no2[i]?.value ?? 0,
+            dust: p25 * 0.4,
             isForecast: false,
           });
         }
@@ -163,7 +163,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
     try {
       const d = new Date(tickItem);
       if (isNaN(d.getTime())) return String(tickItem);
-      
+
       if (range === '1h' || range === '6h' || range === '12h') {
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
@@ -213,8 +213,8 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
     }));
 
   return (
-  <div className="analytics-view">
-      
+    <div className="analytics-view">
+
       {/* Header & Controls */}
       <div className="analytics-header">
         <div>
@@ -261,7 +261,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
           </div>
         </div>
 
-        <button 
+        <button
           onClick={() => openPrintablePdf(d.reportPayload)}
           className="analytics-export-btn"
         >
@@ -300,9 +300,9 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
                   key={key}
                   className={`analytics-series-label analytics-series-${key} ${enabled[key] ? '' : 'is-disabled'}`}
                 >
-                  <input 
-                    type="checkbox" 
-                    checked={enabled[key]} 
+                  <input
+                    type="checkbox"
+                    checked={enabled[key]}
                     onChange={() => setEnabled(prev => ({ ...prev, [key]: !prev[key] }))}
                     className="analytics-series-checkbox"
                   />
@@ -325,26 +325,26 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={combinedData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" opacity={0.4} />
-              <XAxis 
-                dataKey="time" 
-                stroke="var(--ink-3)" 
-                fontSize={11} 
-                tickLine={false} 
-                tick={{fill: 'var(--ink-2)', fontWeight: 500}} 
+              <XAxis
+                dataKey="time"
+                stroke="var(--ink-3)"
+                fontSize={11}
+                tickLine={false}
+                tick={{ fill: 'var(--ink-2)', fontWeight: 500 }}
                 minTickGap={range === '1h' ? 40 : 80}
                 tickFormatter={formatXAxis}
               />
               <YAxis yAxisId="left" stroke="var(--ink-3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}`} />
               {enabled.co2 && <YAxis yAxisId="right" orientation="right" stroke="var(--ink-3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}`} />}
-              
-              <Tooltip 
+
+              <Tooltip
                 contentStyle={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: '0 15px 35px -10px rgba(0,0,0,0.15)', padding: '16px' }}
                 itemStyle={{ fontSize: 12, fontWeight: 700, padding: '4px 0' }}
                 labelStyle={{ color: 'var(--ink-3)', marginBottom: 10, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid var(--line)', paddingBottom: 8 }}
                 labelFormatter={formatXAxisLabel}
               />
               <Legend verticalAlign="top" height={40} align="right" iconType="circle" />
-              
+
               {enabled.pm25 && <Line yAxisId="left" type="monotone" dataKey="pm25" name="PM2.5" stroke={POLLUTANT_COLORS.pm25} strokeWidth={3} dot={false} isAnimationActive={false} />}
               {enabled.pm10 && <Line yAxisId="left" type="monotone" dataKey="pm10" name="PM10" stroke={POLLUTANT_COLORS.pm10} strokeWidth={3} dot={false} isAnimationActive={false} />}
               {enabled.co2 && <Line yAxisId="right" type="monotone" dataKey="co2" name="CO2" stroke={POLLUTANT_COLORS.co2} strokeWidth={3} dot={false} isAnimationActive={false} />}
@@ -378,7 +378,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ background: 'var(--bg-0)', border: '1px solid var(--line)', borderRadius: 12 }}
                   itemStyle={{ fontSize: 12, fontWeight: 700 }}
                 />
@@ -398,7 +398,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" opacity={0.4} />
                 <XAxis dataKey="name" stroke="var(--ink-3)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="var(--ink-3)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: 'var(--bg-1)', opacity: 0.3 }}
                   contentStyle={{ background: 'var(--bg-0)', border: '1px solid var(--line)', borderRadius: 12 }}
                 />
@@ -438,7 +438,7 @@ export function AnalyticsView({ authToken, data: d }: AnalyticsViewProps) {
           })}
         </div>
       </div>
-      
+
     </div>
   );
 }

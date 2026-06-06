@@ -12,7 +12,6 @@ import {
   Map as MapIcon,
   Menu,
   Radio,
-  Search,
   Siren,
   X,
   Zap,
@@ -139,9 +138,9 @@ export function Shell({
   };
 
   return (
-  <div
-    className={`app ${hasSideContent ? '' : 'app--no-side'} ${navCollapsed ? 'app--nav-collapsed' : ''} ${sideCollapsed ? 'app--side-collapsed' : ''}`}
-  >
+    <div
+      className={`app ${hasSideContent ? '' : 'app--no-side'} ${navCollapsed ? 'app--nav-collapsed' : ''} ${sideCollapsed ? 'app--side-collapsed' : ''}`}
+    >
       {/* ─── Mobile hamburger overlay ─── */}
       {navOpen && (
         <div
@@ -180,7 +179,7 @@ export function Shell({
 
         <div className="nav-section">
           <div className="nav-section-title">{t('nav.monitor')}</div>
-          <button 
+          <button
             className={`nav-item ${currentTab === 'overview' ? 'active' : ''}`}
             onClick={() => onTabChange('overview')}
             title={t('nav.overview')}
@@ -200,7 +199,7 @@ export function Shell({
             <MapIcon size={16} />
             <span className="nav-label">{t('nav.livemap')}</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${currentTab === 'analytics' ? 'active' : ''}`}
             onClick={() => onTabChange('analytics')}
             title={t('nav.analytics')}
@@ -210,7 +209,7 @@ export function Shell({
             <BarChart3 size={16} />
             <span className="nav-label">{t('nav.analytics')}</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${currentTab === 'alerts' ? 'active' : ''}`}
             onClick={() => onTabChange('alerts')}
             title={t('nav.alerts')}
@@ -239,9 +238,9 @@ export function Shell({
               </span>
             </button>
           )}
-          <button
-            className={`nav-item ${currentTab === 'reports' ? 'active' : ''}`}
-            onClick={() => onTabChange('reports')}
+          <button 
+            className={`nav-item`}
+            onClick={onOpenReportModal}
             title={t('nav.reports')}
             data-tooltip={t('nav.reports')}
           >
@@ -317,11 +316,7 @@ export function Shell({
 
         <div className="topbar-spacer" />
 
-        <div className="search">
-          <Search size={14} />
-          <input placeholder={t('app.search')} />
-          <span className="kbd desktop-only">⌘K</span>
-        </div>
+
 
         <button className="icon-btn desktop-only" onClick={onToggleRtl} title={t('app.toggleDirection')}>
           <Languages size={15} />

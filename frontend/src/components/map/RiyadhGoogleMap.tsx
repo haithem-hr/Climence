@@ -325,7 +325,7 @@ export function RiyadhGoogleMap({
 
           return (
             <Marker
-              key={sensor.uuid}
+              key={`${sensor.uuid}-${sensor.band}`}
               position={[sensor.lat, sensor.lng]}
               icon={icon}
               zIndexOffset={sensor.status === 'offline' ? 0 : sensor.aqi}

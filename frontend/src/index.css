@@ -4625,3 +4625,86 @@ html[dir="rtl"] .sched-item { direction: rtl; }
     scroll-behavior: auto !important;
   }
 }
+/* --- Scheduled Reports Modal UI --- */
+.scheduler-box {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.scheduler-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.scheduler-inputs > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.add-sched-btn {
+  height: 36px;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.scheduler-list-area {
+  padding: 16px;
+}
+
+.list-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-bottom: 12px;
+}
+
+.sched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sched-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sched-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-1);
+  margin-bottom: 4px;
+}
+
+.sched-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}

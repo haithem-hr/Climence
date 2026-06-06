@@ -20,8 +20,6 @@ import {
 import { AQI_BANDS, aqiBandFor } from '@climence/shared';
 import { useOpenMeteoAirQuality } from '../hooks/useOpenMeteoAirQuality';
 import { RiyadhGoogleMap } from './map/RiyadhGoogleMap';
-import { AlertSettingsPanel } from './panels/AlertSettingsPanel';
-import { EventBanner } from './panels/EventBanner';
 import { FeedPanel } from './panels/FeedPanel';
 import { ForecastPanel } from './panels/ForecastPanel';
 import { HotspotsPanel } from './panels/HotspotsPanel';
@@ -96,8 +94,8 @@ function CityTrendChart({
 
   const labels = range === '1s' ? ['-60s', '-45s', '-30s', '-15s', 'Now']
     : range === '15m' ? ['-15m', '-10m', '-5m', 'Now']
-    : range === '30m' ? ['-30m', '-20m', '-10m', 'Now']
-    : ['-60m', '-40m', '-20m', 'Now'];
+      : range === '30m' ? ['-30m', '-20m', '-10m', 'Now']
+        : ['-60m', '-40m', '-20m', 'Now'];
 
   const pm25Path = makePath(pm25Series, width, height, pad, max);
   const pm10Path = makePath(pm10Series, width, height, pad, max);
@@ -135,22 +133,20 @@ function HotspotDrawer({
   historySeries,
   pollutantStats,
   onClose,
-  onNavigate,
   onOpenReportModal,
 }: {
   hotspot: HotspotCard | null;
   historySeries: number[];
   pollutantStats: PollutantStat[];
   onClose: () => void;
-  onNavigate?: (tab: 'overview' | 'livemap' | 'analytics' | 'alerts' | 'sensors' | 'reports') => void;
   onOpenReportModal?: () => void;
 }) {
   const { data: omData } = useOpenMeteoAirQuality(hotspot?.lat, hotspot?.lng);
-  
+
   if (!hotspot) return null;
   const band = AQI_BANDS.find(b => b.key === hotspot.band);
   const series = historySeries.length > 0 ? historySeries : seededSeries(7, 48, hotspot.metricValue * 0.75, 40);
-  
+
   // Combine hardware stats with Open-Meteo if available
   const extendedStats = [...pollutantStats.slice(0, 4)];
   if (omData?.current) {
@@ -190,7 +186,7 @@ function HotspotDrawer({
         </div>
         <div style={{ margin: '14px 0 6px' }} className="eyebrow">48h trend</div>
         <div style={{ height: 60 }}><Sparkline data={series} color={`var(--aqi-${hotspot.band})`} width={380} height={60} /></div>
-        
+
         <div style={{ marginTop: 18 }} className="eyebrow">Live Atmospheric Readings</div>
         <div className="pollutant-grid" style={{ marginTop: 8 }}>
           {extendedStats.map(stat => (
@@ -200,15 +196,12 @@ function HotspotDrawer({
             </div>
           ))}
         </div>
-        
+
         <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
           <button
             className="btn"
             style={{ justifyContent: 'center' }}
-            onClick={() => {
-              if (onNavigate) onNavigate('reports');
-              else onOpenReportModal?.();
-            }}
+            onClick={() => onOpenReportModal?.()}
           >
             <FileText size={13} />Full report
           </button>
@@ -376,7 +369,6 @@ function MainContent({
           historySeries={d.drawerHistorySeries}
           pollutantStats={d.pollutantStats}
           onClose={() => d.setSelected(null)}
-          onNavigate={onNavigate}
           onOpenReportModal={onOpenReportModal}
         />
       </div>
@@ -389,8 +381,6 @@ function MainContent({
 function SideContent({ d }: { d: DashboardData }) {
   return (
     <>
-      <EventBanner data={d} />
-      <AlertSettingsPanel data={d} />
 
 
       {/* City Trend */}
@@ -407,9 +397,7 @@ function SideContent({ d }: { d: DashboardData }) {
               </span>
             </div>
           </div>
-          <div className="range-picker">
-            {(['1s', '15m', '30m', '1h'] as TimeRange[]).map(v => (<button key={v} className={d.range === v ? 'active' : ''} onClick={() => d.setRange(v)}>{v === '1s' ? 'second' : v === '15m' ? '15 min' : v === '30m' ? '30 min' : '1 hour'}</button>))}
-          </div>
+
         </div>
         <div className="chart-wrap"><CityTrendChart pm25Series={d.pm25Series} pm10Series={d.pm10Series} no2Series={d.no2Series} co2Series={d.co2Series} range={d.range} /></div>
         <div className="row-between" style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-2)' }}>

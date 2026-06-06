@@ -21,7 +21,6 @@ import { AnalyticsView } from './components/panels/AnalyticsView';
 import { LiveMapView } from './components/panels/LiveMapView';
 import { AlertsView } from './components/panels/AlertsView';
 import { SensorsView } from './components/panels/SensorsView';
-import { ReportsView } from './components/panels/ReportsView';
 
 export type DataSource = 'live' | 'stationary';
 const DS_KEY = 'climence.data-source';
@@ -142,7 +141,6 @@ export default function App() {
         {data.currentTab === 'analytics' && <AnalyticsView authToken={authToken} data={data} />}
         {data.currentTab === 'alerts' && <AlertsView data={data} />}
         {data.currentTab === 'sensors' && <SensorsView data={data} />}
-        {data.currentTab === 'reports' && <ReportsView data={data} locale={locale} />}
       </Shell>
 
       <ReportModal

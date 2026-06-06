@@ -7,7 +7,7 @@ import {
   type RiyadhMapSensor,
   type RiyadhZoomPreset,
 } from '../map/RiyadhGoogleMap';
-import { heatIntensityForMetric } from '../../lib/mapMetrics';
+import { heatIntensityForMetric, bandForMetricValue } from '../../lib/mapMetrics';
 import {
   clusterLiveMapSensors,
   filterLiveMapSensors,
@@ -184,13 +184,27 @@ export function LiveMapView({ data }: LiveMapViewProps) {
   }, [clusterEnabled, clusteredMembers, filteredSensors]);
 
   const focusUuid = localFocusTarget?.uuid;
-  const mapSensors = useMemo(() => {
+  const mapSensorsRaw = useMemo(() => {
     if (!focusUuid) return visibleSensors;
     if (visibleSensors.some(sensor => sensor.uuid === focusUuid)) return visibleSensors;
 
     const focusedSensor = replaySensors.find(sensor => sensor.uuid === focusUuid);
     return focusedSensor ? [...visibleSensors, focusedSensor] : visibleSensors;
   }, [focusUuid, replaySensors, visibleSensors]);
+
+  const mapSensors = useMemo(() => {
+    return mapSensorsRaw.map(sensor => {
+      let val = sensor.pm25;
+      if (selectedPollutant === 'pm10') val = sensor.pm10;
+      else if (selectedPollutant === 'o3') val = sensor.o3;
+      else if (selectedPollutant === 'no2') val = sensor.no2;
+      else if (selectedPollutant === 'co') val = sensor.co;
+      else if (selectedPollutant === 'so2') val = sensor.so2;
+      else if (selectedPollutant === 'dust') val = sensor.dust;
+      
+      return { ...sensor, band: bandForMetricValue(selectedPollutant, val) };
+    });
+  }, [mapSensorsRaw, selectedPollutant]);
 
   const playbackHeatmapPoints = useMemo<HeatmapPoint[]>(
     () => {

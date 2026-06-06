@@ -57,7 +57,7 @@ export const DICT = {
 
   'panel.alertSettings': { en: 'Alert Settings', ar: 'إعدادات التنبيه' },
   'panel.trend': { en: 'City-wide', ar: 'المدينة' },
-  'panel.trend.eyebrow': { en: 'Trend · PM2.5', ar: 'اتجاه · PM2.5' },
+  'panel.trend.eyebrow': { en: 'Trend', ar: 'اتجاه' },
   'panel.hotspots': { en: 'Hotspots', ar: 'البؤر' },
   'panel.hotspots.eyebrow': { en: 'Last 5 min · ranked', ar: 'آخر ٥ دقائق · مرتبة' },
   'panel.pollutants': { en: 'Pollutants', ar: 'الملوثات' },
