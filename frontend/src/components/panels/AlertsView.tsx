@@ -191,7 +191,7 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
                               {pollutantLabel(event.pollutant_type)} {event.condition_operator ?? '>'} {event.threshold_value ?? '--'}
                             </div>
                             <div className="text-sm text-[var(--ink-2)] mt-1">
-                              Peak value {Math.round(event.peak_value * 10) / 10} · Rule #{event.rule_id}
+                              Peak value {Math.round(event.peak_value * 10) / 10} · Rule #{event.rule_id}{event.drone_id ? ` · ${event.drone_id}` : ''}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -207,8 +207,16 @@ export function AlertsView({ data: d }: { data: DashboardData }) {
             </section>
 
             <section className="flex flex-col gap-4">
-              <div className="flex items-center gap-3 px-2">
+              <div className="flex items-center justify-between gap-3 px-2">
                 <h2 className="font-semibold text-lg">Recently Cleared</h2>
+                {d.clearedAlertEvents.length > 0 && d.canManageAlertSettings && (
+                  <button
+                    className="text-xs text-[var(--ink-3)] hover:text-[var(--danger)] transition-colors"
+                    onClick={() => d.handleClearAlertEvents()}
+                  >
+                    Clear All
+                  </button>
+                )}
               </div>
               <ul className="flex flex-col gap-3">
                 {d.clearedAlertEvents.length === 0 ? (

@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS alert_rules (
 CREATE TABLE IF NOT EXISTS alert_events (
   event_id INTEGER PRIMARY KEY AUTOINCREMENT,
   rule_id INTEGER REFERENCES alert_rules(rule_id),
+  drone_id TEXT,
   triggered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   cleared_at DATETIME,
   peak_value REAL,

@@ -149,6 +149,7 @@ export interface AlertRuleInput {
 export interface AlertEvent {
   event_id: number;
   rule_id: number;
+  drone_id?: string | null;
   triggered_at: string;
   cleared_at: string | null;
   peak_value: number;

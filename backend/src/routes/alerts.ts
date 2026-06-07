@@ -160,6 +160,16 @@ router.delete('/rules/:id', requireAuth, requireRole(...canManageAlerts), async 
   }
 });
 
+router.delete('/cleared', requireAuth, requireRole(...canManageAlerts), async (_req, res) => {
+  try {
+    const storage = getStorage();
+    await storage.clearClearedAlertEvents();
+    res.status(204).send();
+  } catch (err) {
+    sendInternalError(res, 'Database clear cleared alerts error', err);
+  }
+});
+
 router.get('/config', requireAuth, requireRole(...canViewAlerts), async (_req, res) => {
   try {
     const storage = getStorage();

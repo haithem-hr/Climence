@@ -194,6 +194,14 @@ export async function fetchClearedAlertEvents(token: string): Promise<AlertEvent
   return res.json() as Promise<AlertEvent[]>;
 }
 
+export async function clearClearedAlertEvents(token: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/alerts/cleared`, {
+    method: 'DELETE',
+    headers: withAuth(token),
+  });
+  if (!res.ok) throw new Error(`DELETE cleared alerts failed: ${res.status}`);
+}
+
 export async function createMission(mission: unknown, token: string) {
   const res = await fetch(`${API_BASE_URL}/api/missions`, {
     method: 'POST',

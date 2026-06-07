@@ -65,11 +65,14 @@ CREATE TABLE IF NOT EXISTS alert_rules (
 CREATE TABLE IF NOT EXISTS alert_events (
   event_id SERIAL PRIMARY KEY,
   rule_id INT REFERENCES alert_rules(rule_id),
+  drone_id TEXT,
   triggered_at TIMESTAMP DEFAULT NOW(),
   cleared_at TIMESTAMP,
   peak_value DOUBLE PRECISION,
   status VARCHAR(20) DEFAULT 'active'
 );
+
+ALTER TABLE alert_events ADD COLUMN IF NOT EXISTS drone_id TEXT;
 
 CREATE INDEX IF NOT EXISTS alert_rules_user_idx ON alert_rules (user_id);
 CREATE INDEX IF NOT EXISTS alert_events_rule_status_idx ON alert_events (rule_id, status);

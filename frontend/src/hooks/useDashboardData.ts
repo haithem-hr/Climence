@@ -32,6 +32,7 @@ import {
   deleteAlertRule,
   fetchActiveAlertEvents,
   fetchClearedAlertEvents,
+  clearClearedAlertEvents,
   createMission,
 } from '../api/client';
 import type { RiyadhMapBounds, RiyadhMapHotspot, RiyadhMapSensor, RiyadhZoomPreset } from '../components/map/RiyadhGoogleMap';
@@ -431,6 +432,13 @@ export function useDashboardData(
       });
   }, [authToken, refreshAlertData, setAlertRuleState]);
 
+  const handleClearAlertEvents = useCallback(() => {
+    if (!authToken) return;
+    clearClearedAlertEvents(authToken)
+      .then(() => refreshAlertData())
+      .catch((err) => console.error('[handleClearAlertEvents] failed:', err));
+  }, [authToken, refreshAlertData]);
+
   const handleDispatchDrone = useCallback((droneUuid: string, droneLabel: string, lat: number, lng: number) => {
     if (!authToken) return Promise.reject(new Error('No auth token'));
     const missionId = `mission-${Date.now()}`;
@@ -656,25 +664,21 @@ export function useDashboardData(
         : alertThreshold;
 
   const feed = useMemo<FeedItem[]>(() => {
-    const alertsToUse =
-      dataSource === 'stationary'
-        ? sensors.filter(s => s.pm25 >= effectiveAlertThreshold && s.status !== 'offline')
-        : snapshot.alerts;
-
-    if (alertsToUse.length > 0) {
-      return alertsToUse.map(alert => {
-        let severity: AlertSeverity = 'info';
-        if (alert.pm25 >= effectiveAlertThreshold + 45) severity = 'crit';
-        else if (alert.pm25 >= effectiveAlertThreshold) severity = 'warn';
+    if (activeAlertEvents.length > 0) {
+      return activeAlertEvents.map(event => {
+        const peakOverThreshold = typeof event.threshold_value === 'number'
+          ? event.peak_value - event.threshold_value
+          : 0;
+        const severity: AlertSeverity = peakOverThreshold >= 45 ? 'crit' : 'warn';
+        const pollutantName = event.pollutant_type?.toUpperCase() ?? 'Pollutant';
         return {
-          id: `${alert.uuid}-${alert.id ?? alert.uuid}`,
+          id: String(event.event_id),
           severity,
-          title: tFormat('feed.pm25Exceeded', locale, { value: `${Math.round(alert.pm25)} (AQI: ${Math.round(pm25ToAqi(alert.pm25))})` }),
-          meta: `${alert.uuid} · ${alert.lat.toFixed(4)}, ${alert.lng.toFixed(4)}`,
-          time: '1m',
-          lat: alert.lat,
-          lng: alert.lng,
-          uuid: alert.uuid
+          title: `${pollutantName} ${event.condition_operator ?? '>'} ${event.threshold_value} triggered`,
+          meta: event.drone_id
+            ? `Drone ${event.drone_id} · peak ${Math.round(event.peak_value * 10) / 10}`
+            : `Peak ${Math.round(event.peak_value * 10) / 10} · Rule #${event.rule_id}`,
+          time: formatAgo(event.triggered_at),
         };
       });
     }
@@ -687,7 +691,7 @@ export function useDashboardData(
       lat: h.lat,
       lng: h.lng
     }));
-  }, [effectiveAlertThreshold, hotspots, locale, snapshot.alerts, sensors, dataSource]);
+  }, [activeAlertEvents, hotspots, locale]);
 
   const liveAge = formatAgo(snapshot.emittedAt);
   const activePollutant = pollutantStats.find(s => s.key === pollutant)?.name ?? 'PM2.5';
@@ -777,7 +781,7 @@ export function useDashboardData(
     effectiveAlertThreshold, feed, alertThresholdDraft, setAlertThresholdDraft, alertConfigState, setAlertConfigState,
     handleSaveAlertThreshold, canManageAlertSettings, thresholdExceededBy,
     alertRules, activeAlertEvents, clearedAlertEvents, alertRuleState, setAlertRuleState,
-    handleCreateAlertRule, handleDeleteAlertRule, handleDispatchDrone,
+    handleCreateAlertRule, handleDeleteAlertRule, handleClearAlertEvents, handleDispatchDrone,
     // history drawer
     drawerHistorySeries, historySeries,
 

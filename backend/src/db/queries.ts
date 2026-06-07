@@ -656,6 +656,10 @@ export function deleteAlertRule(ruleId: number, userId: number): boolean {
   const result = deleteAlertRuleStmt.run(ruleId);
   return result.changes > 0;
 }
+export function clearClearedAlertEvents(): void {
+  db.prepare(`DELETE FROM alert_events WHERE status = 'cleared'`).run();
+}
+
 export function getAlertEvents(status?: string, limit: number = 50): any[] {
   let query = `
     SELECT ae.*, ar.pollutant_type, ar.threshold_value, ar.condition_operator, ar.notification_channel
@@ -672,21 +676,24 @@ export function getAlertEvents(status?: string, limit: number = 50): any[] {
   return db.prepare(query).all(...params) as any[];
 }
 
-const activeEventByRuleStmt = db.prepare(`
-  SELECT * FROM alert_events WHERE rule_id = ? AND status = 'active' LIMIT 1
+// Runtime migration: add drone_id column if it doesn't exist yet
+try { db.prepare(`ALTER TABLE alert_events ADD COLUMN drone_id TEXT`).run(); } catch { /* column already exists */ }
+
+const activeEventByRuleDroneStmt = db.prepare(`
+  SELECT * FROM alert_events WHERE rule_id = ? AND drone_id = ? AND status = 'active' LIMIT 1
 `);
 
 const insertAlertEventStmt = db.prepare(`
-  INSERT INTO alert_events (rule_id, peak_value, status) VALUES (?, ?, 'active')
+  INSERT INTO alert_events (rule_id, drone_id, peak_value, status) VALUES (?, ?, ?, 'active')
 `);
 
 const updateAlertEventPeakStmt = db.prepare(`
   UPDATE alert_events SET peak_value = ? WHERE event_id = ?
 `);
 
-const clearAlertEventStmt = db.prepare(`
+const clearAlertEventByDroneStmt = db.prepare(`
   UPDATE alert_events SET cleared_at = CURRENT_TIMESTAMP, status = 'cleared'
-  WHERE rule_id = ? AND status = 'active'
+  WHERE rule_id = ? AND drone_id = ? AND status = 'active'
 `);
 
 export function evaluateAlerts(drones: TelemetryInput[]): void {
@@ -695,6 +702,7 @@ export function evaluateAlerts(drones: TelemetryInput[]): void {
   for (const rule of rules) {
     const pollutant = rule.pollutant_type;
     for (const drone of drones) {
+      const droneId = drone.uuid;
       const value = (drone.airQuality as any)[pollutant];
       if (value === undefined || value === null) continue;
 
@@ -707,14 +715,14 @@ export function evaluateAlerts(drones: TelemetryInput[]): void {
               : false;
 
       if (crosses) {
-        const existing = activeEventByRuleStmt.get(rule.rule_id) as any;
+        const existing = activeEventByRuleDroneStmt.get(rule.rule_id, droneId) as any;
         if (!existing) {
-          insertAlertEventStmt.run(rule.rule_id, value);
+          insertAlertEventStmt.run(rule.rule_id, droneId, value);
         } else if (value > existing.peak_value) {
           updateAlertEventPeakStmt.run(value, existing.event_id);
         }
       } else {
-        clearAlertEventStmt.run(rule.rule_id);
+        clearAlertEventByDroneStmt.run(rule.rule_id, droneId);
       }
     }
   }

@@ -509,6 +509,7 @@ export function createRedisPostgresStorage(opts: {
   }
 
   async function deleteAlertRule(ruleId: number) {
+    await pool.query(`DELETE FROM alert_events WHERE rule_id = $1`, [ruleId]);
     const { rowCount } = await pool.query(
       `DELETE FROM alert_rules WHERE rule_id = $1`,
       [ruleId],
@@ -528,7 +529,6 @@ export function createRedisPostgresStorage(opts: {
   }
 
   async function evaluateAlerts(drones: TelemetryInput[]) {
-    // Evaluate alert rules against incoming telemetry
     const { rows: rules } = await pool.query(
       `SELECT * FROM alert_rules WHERE is_active = true`,
     );
@@ -536,6 +536,7 @@ export function createRedisPostgresStorage(opts: {
     for (const rule of rules) {
       const pollutant = rule.pollutant_type as string;
       for (const drone of drones) {
+        const droneId = drone.uuid;
         const value = (drone.airQuality as any)[pollutant];
         if (value === undefined || value === null) continue;
 
@@ -549,13 +550,13 @@ export function createRedisPostgresStorage(opts: {
 
         if (crosses) {
           const { rows: existing } = await pool.query(
-            `SELECT * FROM alert_events WHERE rule_id = $1 AND status = 'active' LIMIT 1`,
-            [rule.rule_id],
+            `SELECT * FROM alert_events WHERE rule_id = $1 AND drone_id = $2 AND status = 'active' LIMIT 1`,
+            [rule.rule_id, droneId],
           );
           if (existing.length === 0) {
             await pool.query(
-              `INSERT INTO alert_events (rule_id, peak_value, status) VALUES ($1, $2, 'active')`,
-              [rule.rule_id, value],
+              `INSERT INTO alert_events (rule_id, drone_id, peak_value, status) VALUES ($1, $2, $3, 'active')`,
+              [rule.rule_id, droneId, value],
             );
           } else if (value > existing[0].peak_value) {
             await pool.query(
@@ -566,12 +567,16 @@ export function createRedisPostgresStorage(opts: {
         } else {
           await pool.query(
             `UPDATE alert_events SET cleared_at = now(), status = 'cleared'
-             WHERE rule_id = $1 AND status = 'active'`,
-            [rule.rule_id],
+             WHERE rule_id = $1 AND drone_id = $2 AND status = 'active'`,
+            [rule.rule_id, droneId],
           );
         }
       }
     }
+  }
+
+  async function clearClearedAlertEvents() {
+    await pool.query(`DELETE FROM alert_events WHERE status = 'cleared'`);
   }
 
   // ------------ Scheduled reports (Postgres, Fix 8) ------------
@@ -642,6 +647,7 @@ export function createRedisPostgresStorage(opts: {
     deleteAlertRule,
     getAlertEvents,
     evaluateAlerts,
+    clearClearedAlertEvents,
 
     getRawPointsForHotspot,
     getHistoricalAvg,

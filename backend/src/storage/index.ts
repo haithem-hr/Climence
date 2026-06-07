@@ -56,6 +56,7 @@ export interface Storage {
   deleteAlertRule(ruleId: number, userId: number): boolean | Promise<boolean>;
   getAlertEvents(status?: AlertEventStatus, limit?: number): AlertEvent[] | Promise<AlertEvent[]>;
   evaluateAlerts(drones: TelemetryInput[]): void | Promise<void>;
+  clearClearedAlertEvents(): void | Promise<void>;
 
   // Analytics primitives
   getRawPointsForHotspot(windowMinutes?: number): RawPoint[] | Promise<RawPoint[]>;

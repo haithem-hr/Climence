@@ -18,6 +18,7 @@ import {
   createAlertRule,
   deleteAlertRule,
   evaluateAlerts,
+  clearClearedAlertEvents,
   getAlertEvents,
   getAllMissions,
   getCityTrend,
@@ -60,6 +61,7 @@ export const sqliteStorage: Storage = {
   deleteAlertRule,
   getAlertEvents,
   evaluateAlerts,
+  clearClearedAlertEvents,
 
   getRawPointsForHotspot,
   getHistoricalAvg,
